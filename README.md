@@ -1,8 +1,27 @@
-# 📊 Sales Performance & Forecasting Dashboard
+<div align="center">
 
-**Status:** 🟡 Initial scaffolding complete — synthetic data generator, KPI engine, and dashboard UI built. Pending: dependency installation, data generation, and deployment.
+# SALES PERFORMANCE & FORECASTING DASHBOARD
 
-**Last Updated:** 2026-06-03
+*An end-to-end interactive dashboard replacing manual Excel reporting, built for EComSpace Group.*
+
+![last commit](https://img.shields.io/github/last-commit/1234620/sales-dashboard?style=flat-square&color=blue)
+![top language](https://img.shields.io/github/languages/top/1234620/sales-dashboard?style=flat-square&color=blue)
+
+*Built with the tools and technologies:*
+
+![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)
+![Streamlit](https://img.shields.io/badge/Streamlit-FF4B4B?style=for-the-badge&logo=streamlit&logoColor=white)
+![Pandas](https://img.shields.io/badge/Pandas-150458?style=for-the-badge&logo=pandas&logoColor=white)
+![Plotly](https://img.shields.io/badge/Plotly-3F4F75?style=for-the-badge&logo=plotly&logoColor=white)
+![Pytest](https://img.shields.io/badge/Pytest-0A9EDC?style=for-the-badge&logo=pytest&logoColor=white)
+
+</div>
+
+---
+
+<div align="center">
+  <img src="assets/dashboard.png" alt="Sales Dashboard Screenshot" width="800">
+</div>
 
 ---
 
@@ -17,6 +36,20 @@ An end-to-end **Sales Performance & Forecasting Dashboard** for [EComSpace Group
 - Provides **contribution margin** and profitability views
 
 Built as part of the Technical Internship Program 2026 (MPSTME NMIMS Mumbai × EComSpace Group).
+
+---
+
+## Features
+
+### Core Functionality
+
+- **KPI Overview:** 8 metric cards and monthly revenue bar/line chart with MoM growth.
+- **Regional Analysis:** Horizontal bar chart and donut chart of 6 Indian regions.
+- **Product Performance:** Category × Month revenue heatmap and top/bottom 10 SKUs.
+- **Trend Analysis:** Daily revenue with 30-day and 90-day moving averages.
+- **Sales Forecasting:** Prophet forecast with 95% confidence intervals and MAPE evaluation.
+- **Anomaly Detection:** Z-score scatter plot and anomalous days table.
+- **Contribution Margin:** Category margin bars, return rates, channel mix, and festive uplift.
 
 ---
 
@@ -47,7 +80,7 @@ streamlit run app.py
 
 ## Architecture
 
-```
+```text
 sales-dashboard/
 ├── app.py                  # Streamlit entry point — 7 tabbed modules
 ├── config.py               # All constants, paths, and parameters (no magic numbers)
@@ -86,20 +119,6 @@ sales-dashboard/
 | **Indian number formatting** | Lakhs (L) and Crores (Cr) instead of M/B for the Indian market |
 | **Prophet with Indian holidays** | Diwali, Holi, Navratri have massive e-commerce impact in India |
 | **Fulfillment cost at 5%** | Explicit assumption (documented in config) until real cost data is available |
-
----
-
-## Dashboard Modules
-
-| Tab | Module | Key Visuals |
-|-----|--------|-------------|
-| 1 | **KPI Overview** | 8 metric cards + monthly revenue bar/line chart with MoM growth |
-| 2 | **Regional Analysis** | Horizontal bar chart + donut chart of 6 Indian regions |
-| 3 | **Product Performance** | Category × Month revenue heatmap + top/bottom 10 SKUs |
-| 4 | **Trend Analysis** | Daily revenue with 30-day and 90-day moving averages |
-| 5 | **Sales Forecasting** | Prophet forecast with 95% confidence intervals + MAPE evaluation |
-| 6 | **Anomaly Detection** | Z-score scatter plot + anomalous days table |
-| 7 | **Contribution Margin** | Category margin bars + return rates + channel mix + festive uplift |
 
 ---
 
@@ -146,8 +165,8 @@ sales-dashboard/
 | `channel` | category | online |
 | `return_flag` | boolean | False |
 
-**8 Categories:** Electronics, Fashion, Home & Kitchen, Beauty, Sports, Books, Grocery, Others
-**6 Regions:** West, South, North, East, Central, North-East
+**8 Categories:** Electronics, Fashion, Home & Kitchen, Beauty, Sports, Books, Grocery, Others  
+**6 Regions:** West, South, North, East, Central, North-East  
 
 ---
 
@@ -196,32 +215,32 @@ Tests cover: total revenue, AOV, discount rate, MoM growth, regional share, repe
 5. `packages.txt` handles system dependencies (build-essential for Prophet/pystan)
 6. Deploy
 
-> **⚠️ Prophet installation note:** Prophet requires C++ build tools. The `packages.txt` file includes `build-essential` for this. If deployment fails, check Streamlit Cloud logs for pystan/cmdstanpy errors.
+> **Prophet installation note:** Prophet requires C++ build tools. The `packages.txt` file includes `build-essential` for this. If deployment fails, check Streamlit Cloud logs for pystan/cmdstanpy errors.
 
 ---
 
 ## What's Done vs. What's Next
 
-### ✅ Completed
-- [x] Project scaffolding and architecture
-- [x] Centralized configuration (`config.py`)
-- [x] Data ingestion pipeline with validation
-- [x] 16 KPI computation functions
-- [x] All chart/visualization functions
-- [x] Prophet forecasting module
-- [x] Synthetic data generator
-- [x] Main Streamlit dashboard (7 tabs)
-- [x] Unit tests for KPIs
-- [x] GitHub repo created and pushed
+### Completed
+- Project scaffolding and architecture
+- Centralized configuration (`config.py`)
+- Data ingestion pipeline with validation
+- 16 KPI computation functions
+- All chart/visualization functions
+- Prophet forecasting module
+- Synthetic data generator
+- Main Streamlit dashboard (7 tabs)
+- Unit tests for KPIs
+- GitHub repo created and pushed
 
-### 🔲 Next Steps
-- [ ] Generate synthetic data and validate
-- [ ] Install dependencies and run dashboard locally
-- [ ] Add India choropleth map (requires GeoJSON file)
-- [ ] Jupyter notebooks for EDA (01_eda.ipynb, 02_kpi_validation.ipynb)
-- [ ] Deploy to Streamlit Community Cloud
-- [ ] Integrate real EComSpace data (when available)
-- [ ] Add data export (CSV/PDF download from dashboard)
+### Next Steps
+- Generate synthetic data and validate
+- Install dependencies and run dashboard locally
+- Add India choropleth map (requires GeoJSON file)
+- Jupyter notebooks for EDA (01_eda.ipynb, 02_kpi_validation.ipynb)
+- Deploy to Streamlit Community Cloud
+- Integrate real EComSpace data (when available)
+- Add data export (CSV/PDF download from dashboard)
 
 ---
 
@@ -233,7 +252,7 @@ If you're picking this up mid-way:
 2. **All visualization is in `src/viz.py`** — returns Plotly figures, called from `app.py`
 3. **`config.py` is the source of truth** for all constants, thresholds, and paths
 4. **Prophet model is cached** via `@st.cache_resource` in `app.py`
-5. **Data pipeline flow:** CSV → `src/data.py:load_data()` → `filter_data()` → KPIs/Charts
+5. **Data pipeline flow:** CSV -> `src/data.py:load_data()` -> `filter_data()` -> KPIs/Charts
 6. **Tests are in `tests/test_kpis.py`** — run with `pytest`
 7. **Dropped KPI #17** (Inventory Turnover) — no stock data in schema
 8. **Fulfillment cost is 5%** — hardcoded in `config.FULFILLMENT_COST_RATE`, swap when real costs arrive
@@ -242,10 +261,10 @@ If you're picking this up mid-way:
 
 ## Author
 
-**Ahmed Moosani**
-MBA Tech (Artificial Intelligence) — Semester VII
-MPSTME, NMIMS Mumbai
-Roll No: R023 | SAP: 70512300046
+**Ahmed Moosani**  
+MBA Tech (Artificial Intelligence) — Semester VII  
+MPSTME, NMIMS Mumbai  
+Roll No: R023 | SAP: 70512300046  
 
-Internship: EComSpace Group (18 May – 11 July 2026)
+Internship: EComSpace Group (18 May – 11 July 2026)  
 Department: Business Analytics / Strategy

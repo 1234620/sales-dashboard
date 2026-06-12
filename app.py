@@ -160,7 +160,7 @@ st.sidebar.metric("Date Span", f"{(filtered_df['date'].max() - filtered_df['date
 # ── Main Title ──────────────────────────────────────────────────────────────
 
 st.title(f"{config.PAGE_ICON} {config.PAGE_TITLE}")
-st.caption("EComSpace Group — Business Analytics Dashboard")
+st.caption("Parasnath Distribution Group — FMCG Sales Analytics Dashboard")
 
 # ── Tabs ────────────────────────────────────────────────────────────────────
 
@@ -423,5 +423,5 @@ with tabs[6]:
 st.markdown("---")
 st.caption(
     "Built by **Ahmed Moosani** — MBA Tech (AI), MPSTME NMIMS Mumbai | "
-    "Internship Project at EComSpace Group | 2026"
+    "Internship Project at Parasnath Distribution Group | 2026"
 )

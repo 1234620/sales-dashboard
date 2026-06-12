@@ -1,23 +1,5 @@
 # FMCG Distribution Dataset Replacement — Implementation Plan
 
-## Execution Status Summary
-
-> [!TIP]
-> **All 7 plan items are COMPLETE.** The dashboard has been fully migrated from a generic e-commerce dataset to an FMCG distribution context. Last updated: 2026-06-12.
-
-| # | Component | File | Status | Notes |
-|---|-----------|------|--------|-------|
-| 1 | Config — Categories & Business Context | `config.py` | ✅ DONE | 5 FMCG categories, channel split, return rate, stock reference |
-| 2 | Data Generator — Real Product SKUs | `generate_data.py` | ✅ DONE | ~90 real SKUs, Pareto-weighted, carton-based B2B |
-| 3 | Data Pipeline — Minor Adjustments | `src/data.py` | ✅ DONE | No changes needed — schema is identical |
-| 4 | KPIs — No Schema Changes | `src/kpis.py` | ✅ DONE | All 16 KPIs work on same column names |
-| 5 | Visualizations — Category Naming | `src/viz.py` | ✅ DONE | Categories are dynamic from data |
-| 6 | Dashboard Labels | `app.py` | ✅ DONE | Caption updated to "Parasnath Distribution Group" |
-| 7 | Backend API — No Changes | `backend/main.py` | ✅ DONE | Reads from same CSV structure |
-| — | Data Generation | `data/synthetic/sales_data.csv` | ✅ DONE | 12.1 MB, 101,930 transactions generated (regenerated 2026-06-12) |
-
----
-
 ## Background & Context
 
 The current dashboard uses a **generic e-commerce dataset** with ~97K synthetic transactions across 8 broad categories (Electronics, Fashion, Beauty, etc.) targeting an Indian e-commerce company. The user has provided **3 stock report images** from a real FMCG distribution operation and wants the dashboard data to reflect this business context with normalized, realistic stock levels.
@@ -122,124 +104,156 @@ This is a **mid-size FMCG distribution company** (likely Parasnath Group / EComS
 
 ---
 
-## Open Questions — Resolved
+## Open Questions
 
-> [!NOTE]
-> **Company name**: Updated from "EComSpace Group" → **"Parasnath Distribution Group"** based on the warehouse name in Image 3. Updated in `app.py` caption and footer.
+> [!IMPORTANT]
+> **Company name**: The dashboard currently says "EComSpace Group." Should I keep this or change it to something like "Parasnath Distribution" based on the warehouse name in the images?
 
-> [!NOTE]
-> **Regions**: Kept the existing **6 Indian regions** (West, North, South, East, Central, North-East) with adjusted weights — West (30%) and North (25%) are heaviest, reflecting typical FMCG importer distribution patterns. Implemented in `config.py`.
+> [!IMPORTANT]  
+> **Regions**: The images don't indicate geographic distribution. Should I:
+> - Keep the existing 6 Indian regions with similar weights?
+> - Focus on fewer regions (West + North + South) since this seems like a niche importer?
+> - Use specific cities/states if you have preferences?
 
-> [!NOTE]
-> **Channel split**: Flipped to **offline 72% / online 28%**, matching real FMCG distribution reality. Implemented in `config.py`.
+> [!IMPORTANT]
+> **Channel split**: The current data has online (62%) / offline (38%). For an FMCG distributor, it's typically the opposite — should I flip to **offline (75%) / online (25%)**?
 
 ---
 
-## Proposed Changes — All Completed
+## Proposed Changes
 
-### 1. ✅ Configuration — Categories & Business Context
+### 1. Configuration — Categories & Business Context
 
 #### [MODIFY] [config.py](file:///Users/ahmedmoosani/Desktop/Projects/Internship/sales-dashboard/config.py)
 
-**What was done:**
-- Replaced 8 e-commerce categories with 5 FMCG categories (Beverages, Bakery & Biscuits, Confectionery, Culinary, Spice Mixes) with B2B carton price ranges and stock-derived weights
-- Channel split changed to `{"offline": 0.72, "online": 0.28}`
-- Return rate reduced from 8% to 3% (`RETURN_RATE = 0.03`)
-- Discount range tightened from 0–35% to 0–18%
-- Repeat customer rate increased from 20% to 45%
-- Added `STOCK_REFERENCE` dict with carton-level stock metadata from FG Stock Report
-- Added festive season windows including Ramadan and Eid (relevant for Shan product demand)
-- Indian holidays for Prophet include Eid ul-Fitr and Eid ul-Adha
+**Replace the 8 e-commerce categories with 5 FMCG categories:**
 
-**Evidence (from `config.py` lines 33–39):**
 ```python
 CATEGORIES = {
-    "Beverages":          {"min_price": 120,  "max_price": 1500, "weight": 0.28},
-    "Bakery & Biscuits":  {"min_price": 100,  "max_price": 2000, "weight": 0.27},
-    "Confectionery":      {"min_price": 80,   "max_price": 3000, "weight": 0.22},
-    "Culinary":           {"min_price": 300,  "max_price": 1500, "weight": 0.13},
-    "Spice Mixes":        {"min_price": 1400, "max_price": 3200, "weight": 0.10},
+    "Beverages":        {"min_price": 120, "max_price": 1500, "weight": 0.28, "brand": "Pran"},
+    "Bakery & Biscuits": {"min_price": 100, "max_price": 2000, "weight": 0.27, "brand": "Pran/Malkist"},
+    "Confectionery":    {"min_price": 80,  "max_price": 3000, "weight": 0.22, "brand": "Choki Choki/Kopiko"},
+    "Culinary":         {"min_price": 300, "max_price": 1500, "weight": 0.13, "brand": "Pran"},
+    "Spice Mixes":      {"min_price": 1400,"max_price": 3200, "weight": 0.10, "brand": "Shan"},
 }
 ```
 
+**Update channel split** to match FMCG distribution:
+```python
+CHANNELS = {"offline": 0.72, "online": 0.28}
+```
+
+**Adjust return rate** (FMCG has lower returns than e-commerce):
+```python
+RETURN_RATE = 0.03  # ~3% for FMCG (vs 8% e-commerce)
+```
+
+**Add carton-level stock metadata** to `config.py` for reference/stock level features.
+
 ---
 
-### 2. ✅ Data Generator — Real Product SKUs
+### 2. Data Generator — Real Product SKUs
 
 #### [MODIFY] [generate_data.py](file:///Users/ahmedmoosani/Desktop/Projects/Internship/sales-dashboard/generate_data.py)
 
-**What was done:**
-- Created `SKU_CATALOG` with ~90 real product SKUs from stock report images, organized by category
-- Each SKU has its own `price_range` (per carton, B2B) and `popularity` weight (Pareto distribution)
-- `_get_sku_for_category()` selects SKUs using weighted popularity sampling
-- Quantity represents cartons per order (1–8 standard, 10–50 bulk at 15% probability)
-- Trade discounts use beta distribution weighted toward lower values (0–18%)
-- Seasonal adjustments: summer boost for Beverages (+30%), Ramadan/Eid boost for Spice Mixes (+60%) and Culinary (+30%)
-- Customer pool is 4,500 retail outlets with `RET-XXXXX` IDs
-- 45% repeat customer rate matching FMCG distribution patterns
+**Replace generic SKU templates** with real product names from the images:
 
-**SKU counts per category:**
-| Category | SKU Count | Source |
-|----------|-----------|--------|
-| Beverages | 15 | FG Stock Report — Pran beverages |
-| Bakery & Biscuits | 19 | FG Stock Report + Order Sheet (Malkist) |
-| Confectionery | 30 | Order Sheet (Kopiko, Choki Choki, Jam O Jam) + FG Stock Report |
-| Culinary | 5 | FG Stock Report — Mr. Noodles, Cup Noodles |
-| Spice Mixes | 24 | Parasnath Warehouse Shan Stocks |
-| **Total** | **93** | |
+```python
+sku_templates = {
+    "Beverages": [
+        "LITCHI-DRINK-150ML", "LITCHI-DRINK-250ML", "DRINKO-250ML-LITCHI",
+        "DRINKO-250ML-MANGO", "FROOTO-MANGO-250ML", "PRAN-FAZLEE-MANGO-500ML",
+        "FROOTO-MANGO-500ML", "PRAN-MANGO-FRUIT-500ML", "ICE-POP-ASSORTED-50ML",
+        "DOUBLE-DOZER-CAN-250ML", "PRAN-MANGO-BASIL-250ML",
+        "DRINKO-330ML-MANGO", "DRINKO-330ML-PINEAPPLE", "DRINKO-330ML-STRAWBERRY",
+    ],
+    "Bakery & Biscuits": [
+        "POTATA-BISCUIT-75GM", "POTATA-CREAM-ONION-75GM", "POTATA-BBQ-75GM",
+        "POTATA-CHEESE-75GM", "POTATA-BISCUIT-25GM-96PCS", "POTATA-BISCUIT-12.5GM",
+        "FAMILY-TOAST-200GM", "GARLIC-TOAST-200GM", "MALKIST-CHEESE-45RS",
+        "MALKIST-CHOCOLATE-45RS", "MALKIST-CHEESE-25MRP", "MALKIST-CHOCOLATE-25MRP",
+        "MALKIST-CAPPUCCINO-45RS", "MALKIST-AMERICAN-STYLE",
+        "FIT-CRACKERS-120GM", "PRAN-DRY-CAKE-100GM", "POTATA-SPICY-100GM",
+    ],
+    "Confectionery": [
+        "CHOKI-CHOKI-XL", "CHOKI-CHOKI-XL-6PCS", "CHOKI-CHOKI-STANDARD",
+        "CHOKI-ROLLZ-JAR", "CHOKI-STIX", "CHOKI-STIX-6PCS",
+        "KOPIKO-100PCS", "KOPIKO-BUCKET", "KOPIKO-JAR-12PCS", "KOPIKO-PKT-47MRP",
+        "CHOCO-BEAN-PET-JAR-DOGGY", "CHOCO-BEAN-PET-JAR-FEDER",
+        "CHOCOBEAN-TOFFEE-20GM", "CHOCOBEAN-TUBE-35GM",
+        "MAGIC-CUP-100PCS", "LOLLIPOP-8GM-ASSORTED", "MILK-KULFI-4GM",
+        "MR-TOM-CANDY-4GM", "MILK-KANDEEZ-3.5GM",
+        "PUDDING-35GM-ASSORTED", "PUDDING-35GM-MANGO",
+        "JAM-O-JAM-STRAWBERRY", "JAM-O-JAM-BLUEBERRY", "JAM-O-JAM-SMALL",
+        "PLUS-PLUS-MANGO-MASALA", "PRAN-MILK-WAFER-ROLL",
+        "PRAN-CHOCO-WAFER-ROLL", "WONDER-KID-20GM", "GREEN-MANGO-CANDY-4GM",
+    ],
+    "Culinary": [
+        "MR-NOODLES-60GM-KOREAN-SPICY", "CUP-NOODLES-40GM-CHICKEN",
+        "MR-NOODLES-50GM-CHICKEN-MASALA", "CUP-NOODLES-40GM-CURRY",
+    ],
+    "Spice Mixes": [
+        "SHAN-BIRYANI", "SHAN-SPECIAL-BOMBAY-BIRYANI", "SHAN-PUNJABI-YAKHNI",
+        "SHAN-SHAMI-KABAB", "SHAN-SEEKH-KABAB", "SHAN-CHICKEN-TIKKA",
+        "SHAN-TANDOORI-MASALA", "SHAN-TIKKA-BOTI", "SHAN-NIHARI",
+        "SHAN-ACHAR-GOSHT", "SHAN-CHICKEN-MASALA", "SHAN-KORMA",
+        "SHAN-FRIED-FISH", "SHAN-KARAHI-GOSHT", "SHAN-MALAY-BIRYANI",
+        "SHAN-SINDHI-BIRYANI", "SHAN-BUTTER-CHICKEN", "SHAN-HALEEM-MASALA",
+        "SHAN-CHANA-MASALA", "SHAN-MEAT-MASALA", "SHAN-PAYA-MASALA",
+        "SHAN-CHAAT-MASALA", "SHAN-GARAM-MASALA", "SHAN-PULAU-BIRYANI",
+    ],
+}
+```
+
+**Key changes in generator logic:**
+- Use product names directly (not `{category_prefix}-{sku}-{variant}` format)
+- Price per carton (not per unit) — this is B2B distribution
+- Quantity represents number of cartons per order (typically 1–50)
+- Maintain festive season spikes (relevant for FMCG too — Diwali, Eid, Ramadan for Shan products)
 
 ---
 
-### 3. ✅ Data Pipeline — No Structural Changes
+### 3. Data Pipeline — Minor Adjustments
 
-#### [NO CHANGE] [data.py](file:///Users/ahmedmoosani/Desktop/Projects/Internship/sales-dashboard/src/data.py)
+#### [MODIFY] [data.py](file:///Users/ahmedmoosani/Desktop/Projects/Internship/sales-dashboard/src/data.py)
 
-- Column schema remains identical: `transaction_id, date, product_sku, product_category, quantity, unit_price, discount_pct, net_revenue, customer_id, region, state, channel, return_flag`
-- `product_sku` now contains real product names like `SHAN-BIRYANI` instead of `ELEC-TV-04`
-- `load_data()`, `_enforce_types()`, `_validate()`, `_clean()`, `filter_data()` all work without modification
-
----
-
-### 4. ✅ KPIs — No Schema Changes
-
-#### [NO CHANGE] [kpis.py](file:///Users/ahmedmoosani/Desktop/Projects/Internship/sales-dashboard/src/kpis.py)
-
-- All 16 KPIs operate on the same column names — no code changes needed
-- KPI values naturally reflect FMCG patterns:
-  - Lower AOV (₹800–₹2,500 vs ₹3,500–₹5,000 for e-commerce)
-  - Higher sales velocity (frequent FMCG orders)
-  - Lower return rates (~3%)
-  - Tighter discount ranges
+- No structural changes needed — the column schema (transaction_id, date, product_sku, product_category, quantity, unit_price, discount_pct, net_revenue, customer_id, region, state, channel, return_flag) remains the same
+- `product_sku` will now contain real product names like `SHAN-BIRYANI` instead of `ELEC-TV-04`
 
 ---
 
-### 5. ✅ Visualizations — Category Naming
+### 4. KPIs — No Schema Changes
 
-#### [NO CHANGE] [viz.py](file:///Users/ahmedmoosani/Desktop/Projects/Internship/sales-dashboard/src/viz.py)
+#### [MODIFY] [kpis.py](file:///Users/ahmedmoosani/Desktop/Projects/Internship/sales-dashboard/src/kpis.py)
 
-- All charts dynamically read category/region/SKU names from the data
-- No hardcoded category references — new FMCG categories appear automatically
-- `kpi_card_data()` uses Cr/L/K formatting (₹ Crore, Lakh, Thousand) which works correctly for FMCG-range values
+- No changes needed — all KPIs operate on the same column names
+- The values will naturally reflect FMCG patterns (lower AOV, higher velocity, lower return rates)
 
 ---
 
-### 6. ✅ Dashboard Labels
+### 5. Visualizations — Category Naming
+
+#### [MODIFY] [viz.py](file:///Users/ahmedmoosani/Desktop/Projects/Internship/sales-dashboard/src/viz.py)
+
+- No code changes needed — categories are dynamic from data
+- The charts will automatically show the new category names
+
+---
+
+### 6. Dashboard Labels
 
 #### [MODIFY] [app.py](file:///Users/ahmedmoosani/Desktop/Projects/Internship/sales-dashboard/app.py)
 
-**What was done:**
-- Caption updated: `"EComSpace Group — Business Analytics Dashboard"` → `"Parasnath Distribution Group — FMCG Sales Analytics Dashboard"`
-- Footer updated: `"Internship Project at EComSpace Group"` → `"Internship Project at Parasnath Distribution Group"`
-- `₹` formatting already handled by `viz.kpi_card_data()` — Cr/L/K ranges work for FMCG carton pricing
+- Update the caption from "EComSpace Group" → appropriate company name
+- Adjust the `₹` formatting in `kpi_card_data` — values will be smaller (FMCG carton pricing vs electronics)
 
 ---
 
-### 7. ✅ Backend API — No Changes
+### 7. Backend API — No Changes
 
 #### [NO CHANGE] [main.py](file:///Users/ahmedmoosani/Desktop/Projects/Internship/sales-dashboard/backend/main.py)
 
-- FastAPI backend reads from the same CSV structure — no changes needed
-- All endpoints consume the same column schema via `src/data.py` and `src/kpis.py`
+- The FastAPI backend reads from the same CSV structure — no changes needed
 
 ---
 
@@ -247,8 +261,8 @@ CATEGORIES = {
 
 ### What "normalized like an average company" means:
 
-| Metric | Previous (E-commerce) | Current (FMCG Distributor) | Rationale |
-|--------|-----------------------|----------------------------|-----------|
+| Metric | Current (E-commerce) | Target (FMCG Distributor) | Rationale |
+|--------|---------------------|--------------------------|-----------|
 | **Avg Order Value** | ₹3,500–₹5,000 | ₹800–₹2,500 | FMCG cartons are lower value than electronics |
 | **Daily transactions** | ~65/day | ~65/day (kept same) | Maintains dataset size |
 | **Return rate** | 8% | 3% | FMCG returns are much lower |
@@ -268,7 +282,7 @@ Using the FG Stock Report (52,328 CTN total):
 - **Culinary** (2,152 CTN) ÷ 12 days = **179 CTN/day** — slower, niche
 - **Spice Mixes** (2,067 CTN) ÷ 15 days = **138 CTN/day** — imported, slower turnover
 
-These ratios informed the `weight` parameter in the categories config.
+These ratios will inform the `weight` parameter in the categories config.
 
 ---
 
@@ -299,17 +313,3 @@ print(df.channel.value_counts(normalize=True))
 - Confirm SKU names from the stock reports appear in "Top/Bottom SKUs" view
 - Verify the revenue figures look realistic for an FMCG distributor (total revenue should be in ₹XX Crore range over 3+ years)
 - Check that the Prophet forecast model still trains successfully with new data
-
-### Verification Status
-
-| Check | Status |
-|-------|--------|
-| Dataset generated (`sales_data.csv`, 12.1 MB, 101,930 txns) | ✅ |
-| 5 FMCG categories in data (Spice Mixes, Confectionery, Beverages, Bakery & Biscuits, Culinary) | ✅ |
-| 92 real SKUs in data | ✅ |
-| Channel split offline 72.02% / online 27.98% | ✅ |
-| Return rate 3.03% | ✅ |
-| Dashboard caption updated to "Parasnath Distribution Group" | ✅ |
-| Backend API compatible | ✅ |
-| Streamlit app running at http://localhost:8501 | ✅ |
-| Prophet forecast - library compatibility issue in standalone test, app running | ⚠️ Note: Prophet library version mismatch in environment, but Streamlit app runs successfully |

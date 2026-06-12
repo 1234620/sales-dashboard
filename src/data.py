@@ -7,7 +7,6 @@ missing value handling, and basic data quality checks.
 
 import pandas as pd
 import numpy as np
-import streamlit as st
 from pathlib import Path
 
 import config
@@ -111,7 +110,7 @@ def _validate(df: pd.DataFrame) -> pd.DataFrame:
 
     if issues:
         for issue in issues:
-            st.warning(issue)
+            print(issue)
 
     return df
 

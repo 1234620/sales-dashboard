@@ -24,8 +24,20 @@ def sample_data():
         "date": pd.to_datetime([
             "2024-01-15", "2024-01-20", "2024-02-10", "2024-02-15", "2024-03-01"
         ]),
-        "product_sku": ["ELEC-TV-01", "FASH-SHIRT-01", "ELEC-TV-01", "HOME-MIXER-01", "BOOK-NOVEL-01"],
-        "product_category": ["Electronics", "Fashion", "Electronics", "Home & Kitchen", "Books"],
+        "product_sku": [
+            "LITCHI-DRINK-250ML-48PCS",
+            "POTATA-BISCUIT-75GM-48PCS",
+            "LITCHI-DRINK-250ML-48PCS",
+            "KOPIKO-PKT-47MRP",
+            "SHAN-BIRYANI",
+        ],
+        "product_category": [
+            "Beverages",
+            "Bakery & Biscuits",
+            "Beverages",
+            "Confectionery",
+            "Spice Mixes",
+        ],
         "quantity": [1, 2, 1, 1, 3],
         "unit_price": [50000.0, 1500.0, 50000.0, 5000.0, 500.0],
         "discount_pct": [0.10, 0.05, 0.15, 0.0, 0.20],
@@ -119,10 +131,10 @@ class TestReturnRate:
         assert isinstance(result, pd.DataFrame)
         assert "return_rate" in result.columns
 
-    def test_electronics_has_returns(self, sample_data):
+    def test_beverages_has_returns(self, sample_data):
         result = kpis.return_rate_by_category(sample_data)
-        elec = result[result["product_category"] == "Electronics"]
-        assert elec["returned_units"].values[0] == 1  # TXN-003 is a return
+        beverages = result[result["product_category"] == "Beverages"]
+        assert beverages["returned_units"].values[0] == 1  # TXN-003 is a return
 
 
 class TestChannelMix:

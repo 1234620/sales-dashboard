@@ -122,18 +122,3 @@ INDIAN_HOLIDAYS = [
     {"holiday": "Eid ul-Adha",       "ds": "2024-06-17", "lower_window": -3, "upper_window": 2},
     {"holiday": "Eid ul-Adha",       "ds": "2025-06-07", "lower_window": -3, "upper_window": 2},
 ]
-
-# ── Dashboard Layout ────────────────────────────────────────────────────────
-PAGE_TITLE = "Sales Performance & Forecasting Dashboard"
-PAGE_ICON = "📊"
-SIDEBAR_TITLE = "Filters"
-
-TAB_NAMES = [
-    "📈 KPI Overview",
-    "🗺️ Regional Analysis",
-    "📦 Product Performance",
-    "📉 Trend Analysis",
-    "🔮 Sales Forecasting",
-    "🚨 Anomaly Detection",
-    "💰 Contribution Margin",
-]

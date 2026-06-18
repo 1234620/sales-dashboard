@@ -985,7 +985,9 @@ export default function Dashboard() {
 
       {/* Footer */}
       <div className="border-t border-slate-900 bg-slate-900/20 py-8 mt-12 text-center text-xs text-slate-500">
-        <p>Built by **Ahmed Moosani** — MBA Tech (AI), MPSTME NMIMS Mumbai</p>
+        <p>
+          Built by <span className="font-semibold text-slate-400">Ahmed Moosani</span> — MBA Tech (AI), MPSTME NMIMS Mumbai
+        </p>
         <p className="mt-1">Internship Project at Parasnath Distribution Group | 2026</p>
       </div>
 

@@ -1,8 +1,19 @@
+"use client";
+
 import { MetricCard, TabSection } from "@/components/dashboard/MetricCard";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import type { AnomaliesSection } from "@/lib/types";
-import { formatCurrency } from "@/lib/format";
 import {
+  CHART_AXIS_TICK,
+  CHART_LEGEND_STYLE,
+  CHART_TOOLTIP_STYLE,
+  computeTickInterval,
+  formatShortDate,
+} from "@/lib/chart-utils";
+import { formatCurrency, formatDate } from "@/lib/format";
+import { useMemo } from "react";
+import {
+  Brush,
   CartesianGrid,
   Legend,
   Line,
@@ -27,10 +38,6 @@ function currencyTick(value: number): string {
   return formatCurrency(value);
 }
 
-function formatAxisDate(val: string): string {
-  return val ? val.split("T")[0] : "";
-}
-
 function AnomalyDot({ cx, cy, payload }: AnomalyDotProps) {
   if (cx === undefined || cy === undefined) {
     return <g />;
@@ -40,10 +47,10 @@ function AnomalyDot({ cx, cy, payload }: AnomalyDotProps) {
       <circle
         cx={cx}
         cy={cy}
-        r={5}
+        r={8}
         fill="#EF4444"
         stroke="#fff"
-        strokeWidth={1.5}
+        strokeWidth={2}
       />
     );
   }
@@ -52,6 +59,19 @@ function AnomalyDot({ cx, cy, payload }: AnomalyDotProps) {
 
 export function AnomaliesTab({ section }: AnomaliesTabProps) {
   const { data: anomalyData, loading, error } = section;
+
+  const chartData = useMemo(() => {
+    if (!anomalyData?.data) return [];
+    return anomalyData.data.map((d) => ({
+      ...d,
+      date: d.date.split("T")[0],
+    }));
+  }, [anomalyData]);
+
+  const defaultBrushStart = useMemo(() => {
+    if (chartData.length <= 90) return 0;
+    return Math.max(0, chartData.length - 90);
+  }, [chartData.length]);
 
   return (
     <TabSection loading={loading} error={error} hasData={!!anomalyData}>
@@ -87,38 +107,51 @@ export function AnomaliesTab({ section }: AnomaliesTabProps) {
                 Daily Revenue Anomaly Timeline
               </CardTitle>
               <CardDescription className="text-slate-400">
-                Z-score deviations highlighting days with unexpected sales spikes or drops
+                Z-score deviations highlighting days with unexpected sales spikes or drops.
+                Drag the brush below to zoom into a date range.
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={380}>
-                <LineChart data={anomalyData.data}>
+              <ResponsiveContainer width="100%" height={420}>
+                <LineChart
+                  data={chartData}
+                  margin={{ top: 8, right: 16, left: 8, bottom: 8 }}
+                >
                   <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
                   <XAxis
                     dataKey="date"
                     stroke="#64748b"
-                    style={{ fontSize: "10px" }}
-                    tickFormatter={formatAxisDate}
+                    tick={CHART_AXIS_TICK}
+                    tickFormatter={formatShortDate}
+                    interval={computeTickInterval(chartData.length, 10)}
+                    angle={-35}
+                    textAnchor="end"
+                    height={56}
                   />
                   <YAxis
                     stroke="#64748b"
-                    style={{ fontSize: "11px" }}
+                    tick={CHART_AXIS_TICK}
                     tickFormatter={currencyTick}
+                    width={72}
+                    label={{
+                      value: "Revenue",
+                      angle: -90,
+                      position: "insideLeft",
+                      fill: "#94a3b8",
+                      style: { textAnchor: "middle", fontSize: 11 },
+                    }}
                   />
                   <Tooltip
-                    contentStyle={{
-                      backgroundColor: "#0f172a",
-                      borderColor: "#334155",
-                      borderRadius: "12px",
-                    }}
-                    formatter={(val: number) => formatCurrency(val)}
+                    contentStyle={CHART_TOOLTIP_STYLE}
+                    labelFormatter={(label) => formatDate(String(label))}
+                    formatter={(val: number, name: string) => [formatCurrency(val), name]}
                   />
-                  <Legend />
+                  <Legend wrapperStyle={CHART_LEGEND_STYLE} />
                   <Line
                     type="monotone"
                     dataKey="daily_revenue"
                     stroke="#4F46E5"
-                    strokeWidth={1}
+                    strokeWidth={1.5}
                     name="Daily Revenue"
                     dot={AnomalyDot}
                   />
@@ -130,6 +163,15 @@ export function AnomaliesTab({ section }: AnomaliesTabProps) {
                     strokeWidth={2}
                     dot={false}
                     name="30-day Mean"
+                  />
+                  <Brush
+                    dataKey="date"
+                    height={28}
+                    stroke="#6366F1"
+                    fill="#1e293b"
+                    tickFormatter={formatShortDate}
+                    startIndex={defaultBrushStart}
+                    travellerWidth={10}
                   />
                 </LineChart>
               </ResponsiveContainer>

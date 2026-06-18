@@ -37,6 +37,10 @@ An end-to-end **Sales Performance & Forecasting Dashboard** for **Parasnath Dist
 
 Built as part of the Technical Internship Program 2026 (MPSTME NMIMS Mumbai × Parasnath Distribution Group).
 
+> **Official UI:** The dashboard runs on the **Next.js 16 + TypeScript** app in [`frontend/`](frontend/).  
+> The original **Streamlit prototype** (`app.py`, Plotly charts) has been **removed** — do not run `streamlit run`.  
+> All chart readability fixes (Phase 2) and tab components live under `frontend/src/components/dashboard/`.
+
 ---
 
 ## Features
@@ -75,19 +79,21 @@ pip install -r requirements.txt
 python3 generate_data.py
 ```
 
-### 3. Start the FastAPI Backend
+### 3. Start the FastAPI Backend (required)
 ```bash
+# From the repo root — serves KPI/chart JSON at http://localhost:8000
 python3 backend/main.py
-# Runs at http://localhost:8000
 ```
 
-### 4. Start the Next.js Frontend
+### 4. Start the Next.js Frontend (this is the dashboard UI)
 ```bash
 cd frontend
-npm install
+npm install          # first time only
 npm run dev
-# Opens at http://localhost:3000
+# Open http://localhost:3000  ← use this URL, not Streamlit (port 8501)
 ```
+
+**You need both processes running:** FastAPI on `:8000` and Next.js on `:3000`. The TypeScript frontend fetches all data from the Python API.
 
 ---
 
@@ -96,39 +102,41 @@ npm run dev
 ```text
 sales-dashboard/
 ├── backend/
-│   └── main.py             # FastAPI backend API serving filtered KPI/chart data
-├── frontend/
-│   ├── app/                # Next.js App Router (TypeScript pages)
-│   ├── src/                # Shared components, hooks, and API client
-│   ├── package.json        # Frontend dependencies (Recharts, Radix, Tailwind)
-│   └── tsconfig.json       # TypeScript config
-├── config.py               # Centralized configuration (FMCG categories, stock weights)
-├── generate_data.py        # Synthetic B2B data generator (~82K transactions)
-├── requirements.txt        # Pinned Python dependencies
-├── packages.txt            # System dependencies
-├── .gitignore
+│   └── main.py             # FastAPI API — KPIs, charts, forecast, anomalies
+├── frontend/               # ★ OFFICIAL DASHBOARD UI (Next.js 16 + TypeScript)
+│   ├── app/                # App Router pages (entry: app/page.tsx)
+│   └── src/
+│       ├── components/dashboard/
+│       │   ├── tabs/       # One component per dashboard tab (Overview, Regional, …)
+│       │   ├── FilterPanel.tsx
+│       │   └── chart-primitives.tsx
+│       ├── lib/            # API client, types, chart-utils, format helpers
+│       └── hooks/
+├── config.py               # FMCG categories, holidays, forecast settings
+├── generate_data.py        # Synthetic B2B data generator (~102K transactions)
+├── requirements.txt        # Python deps (no Streamlit)
 │
 ├── src/
-│   ├── __init__.py
-│   ├── data.py             # Data loading, validation, and filtering pipeline
+│   ├── data.py             # Data loading, validation, filtering
 │   ├── kpis.py             # 16 KPI computation functions (pure, testable)
-│   ├── viz.py              # Helper Plotly viz (historical reference)
-│   └── forecast.py         # Prophet model: train, predict, evaluate (MAPE)
+│   └── forecast.py         # Prophet: train, predict, MAPE evaluation
 │
 ├── tests/
-│   ├── __init__.py
-│   └── test_kpis.py        # Unit tests for KPI functions (runs on pytest)
+│   └── test_kpis.py
 │
 └── data/
-    ├── processed/          # Cleaned master dataset
-    └── synthetic/          # Generated synthetic dataset (CSV)
+    ├── processed/
+    └── synthetic/
 ```
+
+**Removed (legacy):** `app.py` (Streamlit), `src/viz.py` (Plotly helpers) — replaced by Recharts components in `frontend/`.
 
 ### Key Design Decisions
 
 | Decision | Rationale |
 |----------|-----------|
-| **Next.js & FastAPI Separation** | Separates the data processing (Python/Pandas/Prophet) from UI rendering (Next.js/TypeScript) for a responsive, production-ready interface. |
+| **Next.js is the only frontend** | Streamlit was a prototype; production UI is TypeScript + Recharts in `frontend/`. |
+| **Next.js & FastAPI separation** | Python handles Pandas/Prophet; React handles rendering and interactivity. |
 | **All KPIs are pure functions** | Keep core math inside `src/kpis.py` pure and framework-agnostic so that unit tests can run independently. |
 | **`config.py` centralizes everything** | Centralizes category weights, B2B price ranges, festive season windows, and validation parameters. |
 | **React-recharts visualization** | Interactive, smooth vector graphs natively integrated in the React lifecycle. |
@@ -150,11 +158,12 @@ Tests cover: total revenue, AOV, discount rate, MoM growth, regional share, repe
 ## What's Done vs. What's Next
 
 ### Completed
-- Project scaffolding and Next.js / FastAPI separation
+- Project scaffolding and Next.js / FastAPI separation (Streamlit removed)
 - Centralized configuration (`config.py`)
 - Python data ingestion, cleaning, and quality pipeline
 - 16 KPI computations and Prophet forecasting
-- Premium dark-theme Next.js dashboard with responsive Tailwind grid
+- Premium dark-theme **Next.js / TypeScript** dashboard with per-tab components (`frontend/src/components/dashboard/tabs/`)
+- Phase 2 chart readability fixes (Recharts: axis labels, confidence bands, SKU tooltips, dynamic MAPE, etc.)
 - Fully integrated control panel and filter pills (Region, Category, Channel, Date Range)
 - Unit tests for KPIs
 

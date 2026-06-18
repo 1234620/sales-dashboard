@@ -1,12 +1,18 @@
 import { TabSection } from "@/components/dashboard/MetricCard";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import type { ProductsSection } from "@/lib/types";
-import { formatCurrency } from "@/lib/format";
+import type { ProductsSection, SKUData } from "@/lib/types";
+import {
+  CHART_AXIS_TICK,
+  CHART_TOOLTIP_STYLE,
+  truncateLabel,
+} from "@/lib/chart-utils";
+import { formatCurrency, formatNumber } from "@/lib/format";
+import { useMemo } from "react";
 import {
   Bar,
   BarChart,
   CartesianGrid,
-  Legend,
+  LabelList,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -17,14 +23,60 @@ interface ProductsTabProps {
   section: ProductsSection;
 }
 
+interface SkuChartRow extends SKUData {
+  skuLabel: string;
+}
+
 function currencyTick(value: number): string {
   return formatCurrency(value);
+}
+
+function prepareSkuRows(skus: SKUData[]): SkuChartRow[] {
+  return skus.map((sku) => ({
+    ...sku,
+    skuLabel: truncateLabel(sku.product_sku, 32),
+  }));
+}
+
+function SkuTooltip({
+  active,
+  payload,
+}: {
+  active?: boolean;
+  payload?: { payload: SkuChartRow }[];
+}) {
+  if (!active || !payload?.length) return null;
+  const row = payload[0].payload;
+  return (
+    <div
+      style={CHART_TOOLTIP_STYLE}
+      className="px-3 py-2 text-sm shadow-lg border"
+    >
+      <p className="font-semibold text-white mb-1 max-w-xs">{row.product_sku}</p>
+      <p className="text-slate-300">Revenue: {formatCurrency(row.revenue)}</p>
+      <p className="text-slate-300">Quantity: {formatNumber(row.quantity)} cartons</p>
+    </div>
+  );
 }
 
 export function ProductsTab({ section }: ProductsTabProps) {
   const { data, loading, error } = section;
   const categoryData = data?.categories;
   const skuData = data?.skus;
+
+  const topSkuRows = useMemo(
+    () => (skuData ? prepareSkuRows(skuData.top) : []),
+    [skuData],
+  );
+  const bottomSkuRows = useMemo((): SkuChartRow[] => {
+    if (!skuData) return [];
+    return prepareSkuRows(skuData.bottom);
+  }, [skuData]);
+
+  const bottomMinRevenue = useMemo(() => {
+    if (bottomSkuRows.length === 0) return 0;
+    return Math.min(...bottomSkuRows.map((r) => r.revenue));
+  }, [bottomSkuRows]);
 
   return (
     <TabSection loading={loading} error={error} hasData={!!data}>
@@ -37,34 +89,48 @@ export function ProductsTab({ section }: ProductsTabProps) {
                   Category Margin Contribution
                 </CardTitle>
                 <CardDescription className="text-slate-400">
-                  Total net revenue vs margins by category
+                  Net revenue by category with margin % annotated on each bar
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={320}>
-                  <BarChart data={categoryData} margin={{ left: 20 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+                  <BarChart
+                    data={categoryData}
+                    layout="vertical"
+                    margin={{ left: 8, right: 48, top: 4, bottom: 4 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" horizontal={false} />
                     <XAxis
-                      dataKey="product_category"
+                      type="number"
                       stroke="#64748b"
-                      style={{ fontSize: "11px" }}
-                    />
-                    <YAxis
-                      stroke="#64748b"
-                      style={{ fontSize: "11px" }}
+                      tick={CHART_AXIS_TICK}
                       tickFormatter={currencyTick}
                     />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: "#0f172a",
-                        borderColor: "#334155",
-                        borderRadius: "12px",
-                      }}
-                      formatter={(val: number) => formatCurrency(val)}
+                    <YAxis
+                      dataKey="product_category"
+                      type="category"
+                      stroke="#64748b"
+                      tick={{ ...CHART_AXIS_TICK, fontSize: 10 }}
+                      width={110}
                     />
-                    <Legend />
-                    <Bar dataKey="revenue" fill="#6366F1" name="Net Revenue" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="margin" fill="#10B981" name="Margin" radius={[4, 4, 0, 0]} />
+                    <Tooltip
+                      contentStyle={CHART_TOOLTIP_STYLE}
+                      formatter={(val: number, name: string) => {
+                        if (name === "Net Revenue") return [formatCurrency(val), name];
+                        return [formatCurrency(val), name];
+                      }}
+                      labelFormatter={(label) => String(label)}
+                    />
+                    <Bar dataKey="revenue" fill="#6366F1" name="Net Revenue" radius={[0, 4, 4, 0]}>
+                      <LabelList
+                        dataKey="margin_pct"
+                        position="right"
+                        formatter={(val: number) => `${val.toFixed(1)}% margin`}
+                        fill="#10B981"
+                        fontSize={10}
+                        fontWeight={600}
+                      />
+                    </Bar>
                   </BarChart>
                 </ResponsiveContainer>
               </CardContent>
@@ -82,30 +148,27 @@ export function ProductsTab({ section }: ProductsTabProps) {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <ResponsiveContainer width="100%" height={320}>
-                  <BarChart data={skuData.top} layout="vertical" margin={{ left: 50 }}>
+                <ResponsiveContainer width="100%" height={360}>
+                  <BarChart
+                    data={topSkuRows}
+                    layout="vertical"
+                    margin={{ left: 8, right: 16, top: 4, bottom: 4 }}
+                  >
                     <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" horizontal={false} />
                     <XAxis
                       type="number"
                       stroke="#64748b"
-                      style={{ fontSize: "11px" }}
+                      tick={CHART_AXIS_TICK}
                       tickFormatter={currencyTick}
                     />
                     <YAxis
-                      dataKey="product_sku"
+                      dataKey="skuLabel"
                       type="category"
                       stroke="#64748b"
-                      style={{ fontSize: "10px" }}
-                      width={80}
+                      tick={{ ...CHART_AXIS_TICK, fontSize: 10 }}
+                      width={200}
                     />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: "#0f172a",
-                        borderColor: "#334155",
-                        borderRadius: "12px",
-                      }}
-                      formatter={(val: number) => formatCurrency(val)}
-                    />
+                    <Tooltip content={<SkuTooltip />} />
                     <Bar dataKey="revenue" fill="#3B82F6" name="Revenue" radius={[0, 4, 4, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
@@ -121,34 +184,35 @@ export function ProductsTab({ section }: ProductsTabProps) {
                 ⬇️ Bottom 10 SKUs by Revenue
               </CardTitle>
               <CardDescription className="text-slate-400">
-                Products generating the lowest revenue share
+                Lowest-revenue products — axis zoomed to this range so differences are visible
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={320}>
-                <BarChart data={skuData.bottom} layout="vertical" margin={{ left: 50 }}>
+              <ResponsiveContainer width="100%" height={360}>
+                <BarChart
+                  data={bottomSkuRows}
+                  layout="vertical"
+                  margin={{ left: 8, right: 16, top: 4, bottom: 4 }}
+                >
                   <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" horizontal={false} />
                   <XAxis
                     type="number"
                     stroke="#64748b"
-                    style={{ fontSize: "11px" }}
+                    tick={CHART_AXIS_TICK}
                     tickFormatter={currencyTick}
+                    domain={[
+                      Math.max(0, bottomMinRevenue * 0.92),
+                      "dataMax",
+                    ]}
                   />
                   <YAxis
-                    dataKey="product_sku"
+                    dataKey="skuLabel"
                     type="category"
                     stroke="#64748b"
-                    style={{ fontSize: "10px" }}
-                    width={80}
+                    tick={{ ...CHART_AXIS_TICK, fontSize: 10 }}
+                    width={200}
                   />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "#0f172a",
-                      borderColor: "#334155",
-                      borderRadius: "12px",
-                    }}
-                    formatter={(val: number) => formatCurrency(val)}
-                  />
+                  <Tooltip content={<SkuTooltip />} />
                   <Bar dataKey="revenue" fill="#EF4444" name="Revenue" radius={[0, 4, 4, 0]} />
                 </BarChart>
               </ResponsiveContainer>

@@ -1,8 +1,18 @@
-import { CHART_COLORS } from "@/components/dashboard/constants";
+"use client";
+
+import { GROUPED_LINE_STYLES } from "@/components/dashboard/constants";
 import { TabSection } from "@/components/dashboard/MetricCard";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import type { DailyRevenueData, ProcessedTrendPoint, TrendGroupBy } from "@/lib/types";
+import {
+  CHART_AXIS_TICK,
+  CHART_LEGEND_STYLE,
+  CHART_TOOLTIP_STYLE,
+  computeTickInterval,
+  formatShortDate,
+} from "@/lib/chart-utils";
 import { formatCurrency } from "@/lib/format";
+import { useState } from "react";
 import {
   CartesianGrid,
   Legend,
@@ -49,7 +59,9 @@ export function TrendsTab({
   trendGroupBy,
   onTrendGroupByChange,
 }: TrendsTabProps) {
+  const [showDaily, setShowDaily] = useState(false);
   const groupNames = getGroupNames(dailyRevenue, trendGroupBy);
+  const pointCount = processedTrendData.length;
 
   return (
     <TabSection loading={loading} error={error} hasData={!!dailyRevenue}>
@@ -63,69 +75,102 @@ export function TrendsTab({
               Daily revenue curve smoothed by 30-day and 90-day rolling averages
             </CardDescription>
           </div>
-          <div className="flex items-center gap-2 bg-slate-800/80 p-1.5 rounded-xl border border-slate-700">
-            <button
-              onClick={() => onTrendGroupByChange(null)}
-              className={`text-xs px-3 py-1.5 rounded-lg transition-all ${
-                !trendGroupBy
-                  ? "bg-indigo-600 text-white font-bold"
-                  : "text-slate-400 hover:text-white"
-              }`}
-            >
-              No Grouping
-            </button>
-            <button
-              onClick={() => onTrendGroupByChange("region")}
-              className={`text-xs px-3 py-1.5 rounded-lg transition-all ${
-                trendGroupBy === "region"
-                  ? "bg-indigo-600 text-white font-bold"
-                  : "text-slate-400 hover:text-white"
-              }`}
-            >
-              By Region
-            </button>
-            <button
-              onClick={() => onTrendGroupByChange("product_category")}
-              className={`text-xs px-3 py-1.5 rounded-lg transition-all ${
-                trendGroupBy === "product_category"
-                  ? "bg-indigo-600 text-white font-bold"
-                  : "text-slate-400 hover:text-white"
-              }`}
-            >
-              By Category
-            </button>
+          <div className="flex flex-wrap items-center gap-2">
+            {!trendGroupBy && (
+              <button
+                onClick={() => setShowDaily((v) => !v)}
+                className={`text-xs px-3 py-1.5 rounded-lg border transition-all ${
+                  showDaily
+                    ? "bg-slate-700 border-slate-600 text-white font-bold"
+                    : "border-slate-700 text-slate-400 hover:text-white"
+                }`}
+              >
+                {showDaily ? "Hide daily" : "Show daily"}
+              </button>
+            )}
+            <div className="flex items-center gap-2 bg-slate-800/80 p-1.5 rounded-xl border border-slate-700">
+              <button
+                onClick={() => onTrendGroupByChange(null)}
+                className={`text-xs px-3 py-1.5 rounded-lg transition-all ${
+                  !trendGroupBy
+                    ? "bg-indigo-600 text-white font-bold"
+                    : "text-slate-400 hover:text-white"
+                }`}
+              >
+                No Grouping
+              </button>
+              <button
+                onClick={() => onTrendGroupByChange("region")}
+                className={`text-xs px-3 py-1.5 rounded-lg transition-all ${
+                  trendGroupBy === "region"
+                    ? "bg-indigo-600 text-white font-bold"
+                    : "text-slate-400 hover:text-white"
+                }`}
+              >
+                By Region
+              </button>
+              <button
+                onClick={() => onTrendGroupByChange("product_category")}
+                className={`text-xs px-3 py-1.5 rounded-lg transition-all ${
+                  trendGroupBy === "product_category"
+                    ? "bg-indigo-600 text-white font-bold"
+                    : "text-slate-400 hover:text-white"
+                }`}
+              >
+                By Category
+              </button>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
-          <ResponsiveContainer width="100%" height={400}>
-            <LineChart data={processedTrendData}>
+          <ResponsiveContainer width="100%" height={420}>
+            <LineChart
+              data={processedTrendData}
+              margin={{ top: 8, right: 16, left: 8, bottom: 8 }}
+            >
               <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-              <XAxis dataKey="date" stroke="#64748b" style={{ fontSize: "10px" }} />
+              <XAxis
+                dataKey="date"
+                stroke="#64748b"
+                tick={CHART_AXIS_TICK}
+                tickFormatter={formatShortDate}
+                interval={computeTickInterval(pointCount, 12)}
+                angle={-35}
+                textAnchor="end"
+                height={56}
+              />
               <YAxis
                 stroke="#64748b"
-                style={{ fontSize: "11px" }}
+                tick={CHART_AXIS_TICK}
                 tickFormatter={currencyTick}
+                width={72}
+                label={{
+                  value: "Revenue",
+                  angle: -90,
+                  position: "insideLeft",
+                  fill: "#94a3b8",
+                  style: { textAnchor: "middle", fontSize: 11 },
+                }}
               />
               <Tooltip
-                contentStyle={{
-                  backgroundColor: "#0f172a",
-                  borderColor: "#334155",
-                  borderRadius: "12px",
-                }}
+                contentStyle={CHART_TOOLTIP_STYLE}
+                labelFormatter={(label) => formatShortDate(String(label))}
                 formatter={(val: number) => formatCurrency(val)}
               />
-              <Legend />
+              <Legend wrapperStyle={CHART_LEGEND_STYLE} />
               {!trendGroupBy ? (
                 <>
-                  <Line
-                    type="monotone"
-                    dataKey="revenue"
-                    stroke="#334155"
-                    strokeWidth={1}
-                    dot={false}
-                    name="Daily Revenue"
-                    opacity={0.5}
-                  />
+                  {showDaily && (
+                    <Line
+                      type="monotone"
+                      dataKey="revenue"
+                      stroke="#475569"
+                      strokeWidth={1}
+                      dot={false}
+                      name="Daily Revenue"
+                      opacity={0.25}
+                    />
+                  )}
                   <Line
                     type="monotone"
                     dataKey="ma30"
@@ -144,17 +189,21 @@ export function TrendsTab({
                   />
                 </>
               ) : (
-                groupNames.map((grpName, idx) => (
-                  <Line
-                    key={grpName}
-                    type="monotone"
-                    dataKey={grpName}
-                    stroke={CHART_COLORS[idx % CHART_COLORS.length]}
-                    strokeWidth={2}
-                    dot={false}
-                    name={grpName}
-                  />
-                ))
+                groupNames.map((grpName, idx) => {
+                  const style = GROUPED_LINE_STYLES[idx % GROUPED_LINE_STYLES.length];
+                  return (
+                    <Line
+                      key={grpName}
+                      type="monotone"
+                      dataKey={grpName}
+                      stroke={style.stroke}
+                      strokeWidth={2.5}
+                      strokeDasharray={style.strokeDasharray}
+                      dot={false}
+                      name={grpName}
+                    />
+                  );
+                })
               )}
             </LineChart>
           </ResponsiveContainer>

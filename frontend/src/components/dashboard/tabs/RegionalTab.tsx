@@ -1,7 +1,9 @@
 import { CHART_COLORS } from "@/components/dashboard/constants";
+import { PiePercentLabel, PieSliceLabel } from "@/components/dashboard/chart-primitives";
 import { TabSection } from "@/components/dashboard/MetricCard";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import type { RegionalSection } from "@/lib/types";
+import { CHART_LEGEND_STYLE, CHART_TOOLTIP_STYLE } from "@/lib/chart-utils";
 import { formatCurrency, formatPercent } from "@/lib/format";
 import { Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 
@@ -26,17 +28,21 @@ export function RegionalTab({ section }: RegionalTabProps) {
               </CardDescription>
             </CardHeader>
             <CardContent className="flex items-center justify-center">
-              <ResponsiveContainer width="100%" height={320}>
-                <PieChart>
+              <ResponsiveContainer width="100%" height={340}>
+                <PieChart margin={{ top: 8, right: 24, bottom: 8, left: 24 }}>
                   <Pie
                     data={regionalData}
                     dataKey="revenue"
                     nameKey="region"
                     cx="50%"
                     cy="50%"
-                    outerRadius={100}
-                    innerRadius={65}
-                    paddingAngle={3}
+                    outerRadius={95}
+                    innerRadius={58}
+                    paddingAngle={2}
+                    stroke="#0f172a"
+                    strokeWidth={2}
+                    label={PieSliceLabel}
+                    labelLine={false}
                   >
                     {regionalData.map((entry, index) => (
                       <Cell
@@ -45,15 +51,28 @@ export function RegionalTab({ section }: RegionalTabProps) {
                       />
                     ))}
                   </Pie>
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "#0f172a",
-                      borderColor: "#334155",
-                      borderRadius: "12px",
-                    }}
-                    formatter={(val: number) => formatCurrency(val)}
+                  <Pie
+                    data={regionalData}
+                    dataKey="revenue"
+                    nameKey="region"
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={95}
+                    innerRadius={58}
+                    fill="none"
+                    stroke="none"
+                    label={PiePercentLabel}
+                    labelLine={{ stroke: "#64748b", strokeWidth: 1 }}
+                    isAnimationActive={false}
                   />
-                  <Legend wrapperStyle={{ color: "#fff" }} />
+                  <Tooltip
+                    contentStyle={CHART_TOOLTIP_STYLE}
+                    formatter={(val: number, _name, item) => [
+                      `${formatCurrency(val)} (${formatPercent(item.payload.share_pct)})`,
+                      item.payload.region,
+                    ]}
+                  />
+                  <Legend wrapperStyle={CHART_LEGEND_STYLE} iconType="circle" />
                 </PieChart>
               </ResponsiveContainer>
             </CardContent>

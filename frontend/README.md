@@ -1,36 +1,44 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Sales Dashboard — Next.js Frontend
 
-## Getting Started
+This directory is the **official dashboard UI** for the Parasnath Sales Performance & Forecasting project.
 
-First, run the development server:
+The legacy **Streamlit** app (`app.py` at repo root) has been removed. All visualization work — including Phase 2 chart readability fixes — lives here in TypeScript with [Recharts](https://recharts.org/).
+
+## Prerequisites
+
+Start the FastAPI backend from the repo root first:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+python3 backend/main.py   # http://localhost:8000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Run the dashboard
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+cd frontend
+npm install    # first time only
+npm run dev    # http://localhost:3000
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Open **http://localhost:3000** in your browser. Do not use `streamlit run` or port 8501.
 
-## Learn More
+## Project layout
 
-To learn more about Next.js, take a look at the following resources:
+| Path | Purpose |
+|------|---------|
+| `app/page.tsx` | Main dashboard shell — filters, tab routing, data fetching |
+| `src/components/dashboard/tabs/` | One file per tab (Overview, Regional, Products, Trends, Forecasting, Anomalies, Margins) |
+| `src/lib/api.ts` | HTTP client → FastAPI (`localhost:8000`) |
+| `src/lib/chart-utils.ts` | Shared axis formatting, tick intervals, MAPE helper |
+| `src/lib/types.ts` | TypeScript types matching API responses |
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Scripts
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+npm run dev      # Development server
+npm run build    # Production build
+npm run lint     # ESLint
+npx tsc --noEmit # Type check
+```
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+See the [root README](../README.md) for data generation, backend setup, and architecture.

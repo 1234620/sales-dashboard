@@ -1,6 +1,12 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { MetricCard, TabSection } from "@/components/dashboard/MetricCard";
 import type { OverviewSection } from "@/lib/types";
+import {
+  CHART_AXIS_TICK,
+  CHART_TOOLTIP_STYLE,
+  computeTickInterval,
+  formatYearMonth,
+} from "@/lib/chart-utils";
 import { formatCurrency, formatNumber, formatPercent } from "@/lib/format";
 import {
   Area,
@@ -24,13 +30,10 @@ export function OverviewTab({ section }: OverviewTabProps) {
   const { data, loading, error } = section;
   const kpis = data?.kpis;
   const trendData = data?.trend;
+  const monthCount = trendData?.data.length ?? 0;
 
   return (
-    <TabSection
-      loading={loading}
-      error={error}
-      hasData={!!data}
-    >
+    <TabSection loading={loading} error={error} hasData={!!data}>
       <div className="space-y-8">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <MetricCard
@@ -119,8 +122,11 @@ export function OverviewTab({ section }: OverviewTabProps) {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={380}>
-                <AreaChart data={trendData.data} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
+              <ResponsiveContainer width="100%" height={400}>
+                <AreaChart
+                  data={trendData.data}
+                  margin={{ top: 10, right: 16, left: 8, bottom: 8 }}
+                >
                   <defs>
                     <linearGradient id="revenueGlow" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#6366F1" stopOpacity={0.4} />
@@ -128,19 +134,32 @@ export function OverviewTab({ section }: OverviewTabProps) {
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
-                  <XAxis dataKey="year_month" stroke="#64748b" style={{ fontSize: "11px" }} />
+                  <XAxis
+                    dataKey="year_month"
+                    stroke="#64748b"
+                    tick={CHART_AXIS_TICK}
+                    tickFormatter={formatYearMonth}
+                    interval={computeTickInterval(monthCount, 10)}
+                    angle={-35}
+                    textAnchor="end"
+                    height={56}
+                  />
                   <YAxis
                     stroke="#64748b"
-                    style={{ fontSize: "11px" }}
+                    tick={CHART_AXIS_TICK}
                     tickFormatter={currencyTick}
+                    width={72}
+                    label={{
+                      value: "Revenue",
+                      angle: -90,
+                      position: "insideLeft",
+                      fill: "#94a3b8",
+                      style: { textAnchor: "middle", fontSize: 11 },
+                    }}
                   />
                   <Tooltip
-                    contentStyle={{
-                      backgroundColor: "#0f172a",
-                      borderColor: "#334155",
-                      color: "#fff",
-                      borderRadius: "12px",
-                    }}
+                    contentStyle={CHART_TOOLTIP_STYLE}
+                    labelFormatter={(label) => formatYearMonth(String(label))}
                     formatter={(val: number) => [formatCurrency(val), "Revenue"]}
                   />
                   <Area

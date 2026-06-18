@@ -241,14 +241,6 @@ export default function Dashboard() {
     [trends.data, trendGroupBy],
   );
 
-  const isInitialLoad =
-    overview.loading &&
-    !overview.data &&
-    regional.loading &&
-    !regional.data &&
-    products.loading &&
-    !products.data;
-
   const toggleRegion = (reg: string) => {
     setFilters((prev) => ({
       ...prev,
@@ -278,24 +270,6 @@ export default function Dashboard() {
 
   const resetFilters = () => setFilters(getDefaultFilters());
 
-  if (isInitialLoad) {
-    return (
-      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-white">
-        <div className="w-16 h-16 relative">
-          <div
-            className="absolute inset-0 bg-gradient-to-r from-indigo-500 to-violet-500 rounded-full animate-spin"
-            style={{ animationDuration: "3s" }}
-          />
-          <div className="absolute inset-1.5 bg-slate-950 rounded-full" />
-        </div>
-        <p className="text-xl font-bold mt-6 tracking-wide text-slate-200">
-          Loading Dashboard...
-        </p>
-        <p className="text-sm text-slate-400 mt-2">Connecting to Parasnath Analytics Engine</p>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-slate-900 via-slate-950 to-indigo-950/40">
       <div className="border-b border-slate-900 bg-slate-900/40 backdrop-blur-md">
@@ -312,7 +286,9 @@ export default function Dashboard() {
             <p>
               Database:{" "}
               <span className="text-indigo-400 font-semibold">
-                {formatNumber(overview.data?.kpis.total_transactions)}
+                {overview.data
+                  ? formatNumber(overview.data.kpis.total_transactions)
+                  : "—"}
               </span>{" "}
               Transactions
             </p>

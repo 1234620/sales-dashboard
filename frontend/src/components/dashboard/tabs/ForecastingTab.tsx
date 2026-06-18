@@ -1,13 +1,28 @@
+"use client";
+
+import { MAPE_THRESHOLD } from "@/components/dashboard/constants";
 import { TabSection } from "@/components/dashboard/MetricCard";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import type { ForecastSection } from "@/lib/types";
+import type { ForecastData, ForecastSection } from "@/lib/types";
+import {
+  CHART_AXIS_TICK,
+  CHART_LEGEND_STYLE,
+  CHART_TOOLTIP_STYLE,
+  computeMape,
+  computeTickInterval,
+  formatYearMonth,
+  normalizeDateKey,
+} from "@/lib/chart-utils";
 import { formatCurrency } from "@/lib/format";
+import { useMemo } from "react";
 import {
   Area,
   CartesianGrid,
   ComposedChart,
   Legend,
   Line,
+  ReferenceArea,
+  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -20,12 +35,66 @@ interface ForecastingTabProps {
   onForecastHorizonChange: (horizon: number) => void;
 }
 
+interface EnrichedForecastPoint {
+  ds: string;
+  yhat: number;
+  yhat_lower: number;
+  yhat_upper: number;
+  ciRange: number;
+  actual?: number;
+  fitted?: number;
+  projected?: number;
+}
+
 function currencyTick(value: number): string {
   return formatCurrency(value);
 }
 
-function formatForecastDate(val: string): string {
-  return val ? val.split("T")[0].substring(0, 7) : "";
+function enrichForecastData(data: ForecastData): {
+  chartData: EnrichedForecastPoint[];
+  forecastStart: string | null;
+  mape: number | null;
+} {
+  const actualsByDs = new Map(
+    (data.validation ?? []).map((v) => [normalizeDateKey(v.ds), v.y]),
+  );
+  const forecastByDs = new Map(
+    data.forecast.map((f) => [normalizeDateKey(f.ds), f.yhat]),
+  );
+
+  const validationDates = (data.validation ?? [])
+    .map((v) => normalizeDateKey(v.ds))
+    .sort();
+  const lastActualDs = validationDates.at(-1) ?? null;
+
+  const chartData: EnrichedForecastPoint[] = data.forecast.map((point) => {
+    const ds = normalizeDateKey(point.ds);
+    const actual = actualsByDs.get(ds);
+    const isFuture = lastActualDs ? ds > lastActualDs : false;
+
+    return {
+      ...point,
+      ds,
+      ciRange: point.yhat_upper - point.yhat_lower,
+      actual,
+      fitted: !isFuture ? point.yhat : undefined,
+      projected: isFuture ? point.yhat : undefined,
+    };
+  });
+
+  const forecastStart =
+    chartData.find((p) => p.projected !== undefined)?.ds ?? null;
+
+  const mapePoints = (data.validation ?? []).map((v) => ({
+    actual: v.y,
+    predicted: forecastByDs.get(normalizeDateKey(v.ds)) ?? 0,
+  }));
+
+  return {
+    chartData,
+    forecastStart,
+    mape: computeMape(mapePoints),
+  };
 }
 
 export function ForecastingTab({
@@ -34,6 +103,15 @@ export function ForecastingTab({
   onForecastHorizonChange,
 }: ForecastingTabProps) {
   const { data: forecastData, loading, error } = section;
+
+  const { chartData, forecastStart, mape } = useMemo(() => {
+    if (!forecastData || forecastData.error || !forecastData.forecast?.length) {
+      return { chartData: [], forecastStart: null, mape: null };
+    }
+    return enrichForecastData(forecastData);
+  }, [forecastData]);
+
+  const mapePasses = mape !== null && mape <= MAPE_THRESHOLD;
 
   return (
     <TabSection loading={loading} error={error} hasData={!!forecastData}>
@@ -64,65 +142,109 @@ export function ForecastingTab({
           </div>
         </CardHeader>
         <CardContent>
-          {forecastData ? (
+          {forecastData && chartData.length > 0 ? (
             <div className="space-y-6">
-              <ResponsiveContainer width="100%" height={350}>
-                <ComposedChart data={forecastData.forecast}>
+              <ResponsiveContainer width="100%" height={380}>
+                <ComposedChart data={chartData} margin={{ top: 8, right: 16, left: 8, bottom: 8 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+                  {forecastStart && (
+                    <ReferenceArea
+                      x1={forecastStart}
+                      x2={chartData[chartData.length - 1]?.ds}
+                      fill="#F59E0B"
+                      fillOpacity={0.06}
+                      strokeOpacity={0}
+                    />
+                  )}
                   <XAxis
                     dataKey="ds"
                     stroke="#64748b"
-                    style={{ fontSize: "10px" }}
-                    tickFormatter={formatForecastDate}
+                    tick={CHART_AXIS_TICK}
+                    tickFormatter={(val) => formatYearMonth(String(val).substring(0, 7))}
+                    interval={computeTickInterval(chartData.length, 10)}
+                    angle={-35}
+                    textAnchor="end"
+                    height={56}
                   />
                   <YAxis
                     stroke="#64748b"
-                    style={{ fontSize: "11px" }}
+                    tick={CHART_AXIS_TICK}
                     tickFormatter={currencyTick}
+                    width={72}
+                    label={{
+                      value: "Revenue",
+                      angle: -90,
+                      position: "insideLeft",
+                      fill: "#94a3b8",
+                      style: { textAnchor: "middle", fontSize: 11 },
+                    }}
                   />
                   <Tooltip
-                    contentStyle={{
-                      backgroundColor: "#0f172a",
-                      borderColor: "#334155",
-                      borderRadius: "12px",
-                    }}
-                    formatter={(val: number) => formatCurrency(val)}
+                    contentStyle={CHART_TOOLTIP_STYLE}
+                    labelFormatter={(label) => formatYearMonth(String(label).substring(0, 7))}
+                    formatter={(val: number, name: string) => [formatCurrency(val), name]}
                   />
-                  <Legend />
-                  <Area
-                    type="monotone"
-                    dataKey="yhat_upper"
-                    stroke="none"
-                    fill="#F59E0B"
-                    fillOpacity={0.08}
-                    name="Confidence Bounds"
-                  />
+                  <Legend wrapperStyle={CHART_LEGEND_STYLE} />
                   <Area
                     type="monotone"
                     dataKey="yhat_lower"
+                    stackId="ci"
                     stroke="none"
-                    fill="#slate-950"
-                    fillOpacity={0}
+                    fill="transparent"
                     legendType="none"
+                    isAnimationActive={false}
                   />
+                  <Area
+                    type="monotone"
+                    dataKey="ciRange"
+                    stackId="ci"
+                    stroke="none"
+                    fill="#F59E0B"
+                    fillOpacity={0.2}
+                    name="95% Confidence"
+                    isAnimationActive={false}
+                  />
+                  {forecastStart && (
+                    <ReferenceLine
+                      x={forecastStart}
+                      stroke="#94a3b8"
+                      strokeDasharray="4 4"
+                      label={{
+                        value: "Forecast start",
+                        position: "insideTopRight",
+                        fill: "#94a3b8",
+                        fontSize: 10,
+                      }}
+                    />
+                  )}
                   <Line
                     type="monotone"
-                    dataKey="y"
+                    dataKey="actual"
                     stroke="#6366F1"
                     strokeWidth={2.5}
-                    dot={{ r: 3 }}
-                    name="Actuals"
-                    connectNulls
+                    dot={{ r: 4 }}
+                    name="Actuals (holdout)"
+                    connectNulls={false}
                   />
                   <Line
                     type="monotone"
-                    dataKey="yhat"
+                    dataKey="fitted"
+                    stroke="#818CF8"
+                    strokeWidth={1.5}
+                    dot={false}
+                    name="In-sample fit"
+                    connectNulls={false}
+                    strokeOpacity={0.7}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="projected"
                     stroke="#F59E0B"
-                    strokeDasharray="5 5"
+                    strokeDasharray="6 4"
                     strokeWidth={2.5}
-                    dot={{ r: 3 }}
+                    dot={{ r: 4 }}
                     name="Forecast"
-                    connectNulls
+                    connectNulls={false}
                   />
                 </ComposedChart>
               </ResponsiveContainer>
@@ -131,17 +253,33 @@ export function ForecastingTab({
                 <div>
                   <h4 className="text-sm font-bold text-white">Forecast Model Performance</h4>
                   <p className="text-xs text-slate-400 mt-1">
-                    Evaluated on a 3-month out-of-sample holdout test (Feb 2026 – Apr 2026)
+                    MAPE computed from out-of-sample holdout validation data
                   </p>
                 </div>
                 <div className="flex items-center gap-6 justify-end">
                   <div className="text-right">
                     <p className="text-xs text-slate-500">Model accuracy (MAPE)</p>
-                    <p className="text-2xl font-black text-emerald-400">9.4%</p>
+                    <p
+                      className={`text-2xl font-black ${
+                        mapePasses ? "text-emerald-400" : "text-rose-400"
+                      }`}
+                    >
+                      {mape !== null ? `${mape.toFixed(1)}%` : "N/A"}
+                    </p>
                   </div>
-                  <div className="px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-bold">
-                    ✅ PASS (Threshold 12%)
-                  </div>
+                  {mape !== null && (
+                    <div
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold border ${
+                        mapePasses
+                          ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
+                          : "bg-rose-500/10 border-rose-500/20 text-rose-400"
+                      }`}
+                    >
+                      {mapePasses
+                        ? `✅ PASS (Threshold ${MAPE_THRESHOLD}%)`
+                        : `❌ FAIL (Threshold ${MAPE_THRESHOLD}%)`}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

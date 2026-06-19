@@ -85,7 +85,7 @@ function AnomalyDot({ cx, cy, index, payload }: AnomalyDotProps) {
 function filterButtonClass(active: boolean): string {
   return `text-xs px-3 py-1.5 rounded-lg transition-all ${
     active
-      ? "bg-[#5D87FF] text-white font-semibold"
+      ? "bg-[#880d1e] text-white font-semibold"
       : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
   }`;
 }
@@ -406,7 +406,7 @@ export function AnomaliesTab({ section }: AnomaliesTabProps) {
                         type="button"
                         disabled={safePage <= 1}
                         onClick={() => setFlaggedPage((p) => p - 1)}
-                        className="text-xs px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 disabled:opacity-40 disabled:cursor-not-allowed hover:border-[#5D87FF] hover:text-[#5D87FF] transition-colors"
+                        className="text-xs px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 disabled:opacity-40 disabled:cursor-not-allowed hover:border-[#880d1e] hover:text-[#880d1e] transition-colors"
                       >
                         Previous
                       </button>
@@ -417,7 +417,7 @@ export function AnomaliesTab({ section }: AnomaliesTabProps) {
                         type="button"
                         disabled={safePage >= flaggedPageCount}
                         onClick={() => setFlaggedPage((p) => p + 1)}
-                        className="text-xs px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 disabled:opacity-40 disabled:cursor-not-allowed hover:border-[#5D87FF] hover:text-[#5D87FF] transition-colors"
+                        className="text-xs px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 disabled:opacity-40 disabled:cursor-not-allowed hover:border-[#880d1e] hover:text-[#880d1e] transition-colors"
                       >
                         Next
                       </button>

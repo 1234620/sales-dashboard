@@ -8,9 +8,8 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Parasnath Sales Dashboard",
-  description:
-    "FMCG sales performance and forecasting dashboard for Parasnath Distribution Group",
+  title: "Sales Analytics Dashboard",
+  description: "FMCG sales performance, forecasting, and anomaly detection dashboard",
 };
 
 export default function RootLayout({
@@ -20,7 +19,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${inter.variable} h-full antialiased`}>
-      <body className="min-h-full flex flex-col font-sans bg-[#f0f4f8] text-gray-800">
+      <body className="min-h-full flex flex-col font-sans bg-white text-[#0a0a0a]">
         {children}
       </body>
     </html>

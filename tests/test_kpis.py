@@ -239,7 +239,20 @@ class TestYoYGrowth:
         assert list(result.columns) == [
             "month", "label", "yoy_growth_pct", "current_revenue", "prior_revenue"
         ]
-        assert len(result) == 12
+        assert len(result) == 3
+
+    def test_partial_current_year_omits_future_months(self, sample_data):
+        """Months beyond latest data in current year must not show -100% YoY."""
+        prior = sample_data.copy()
+        prior["year"] = 2025
+        prior["year_month"] = prior["date"].dt.strftime("%Y-%m")
+        current = sample_data[sample_data["month"] == 1].copy()
+        current["year"] = 2026
+        current["year_month"] = "2026-01"
+        df = pd.concat([prior, current], ignore_index=True)
+        result = kpis.yoy_growth(df)
+        assert len(result) == 1
+        assert int(result.iloc[0]["month"]) == 1
 
     def test_single_year_returns_empty(self, sample_data):
         result = kpis.yoy_growth(sample_data)

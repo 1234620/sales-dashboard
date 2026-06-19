@@ -15,14 +15,14 @@ interface MetricCardProps {
 }
 
 const ACCENT_BAR: Record<NonNullable<MetricCardProps["accent"]>, string> = {
-  blue: "bg-[#5D87FF]",
-  teal: "bg-[#13DEB9]",
-  orange: "bg-[#FFAE1F]",
-  rose: "bg-[#FA896B]",
-  purple: "bg-[#763EBD]",
-  cyan: "bg-[#49BEFF]",
-  pink: "bg-[#FA896B]",
-  sky: "bg-[#0074BA]",
+  blue: "bg-[#880d1e]",
+  teal: "bg-[#dd2d4a]",
+  orange: "bg-[#f49cbb]",
+  rose: "bg-[#c42d48]",
+  purple: "bg-[#6e0a18]",
+  cyan: "bg-[#dd2d4a]",
+  pink: "bg-[#f49cbb]",
+  sky: "bg-[#880d1e]",
 };
 
 export function MetricCard({
@@ -42,7 +42,7 @@ export function MetricCard({
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35, delay: delay / 1000, ease: "easeOut" }}
-      className={`relative overflow-hidden rounded-xl border border-gray-100 bg-white shadow-[0_2px_12px_rgba(0,0,0,0.04)] hover:shadow-[0_8px_24px_rgba(93,135,255,0.12)] transition-shadow duration-300`}
+      className={`relative overflow-hidden rounded-xl border border-gray-100 bg-white shadow-[0_2px_12px_rgba(136,13,30,0.06)] hover:shadow-[0_8px_24px_rgba(244,156,187,0.35)] transition-shadow duration-300`}
     >
       <div className={`absolute left-0 top-0 h-full w-1 ${ACCENT_BAR[accent]}`} />
       <div className="p-5 pl-6">
@@ -64,7 +64,7 @@ export function MetricCard({
           </p>
         )}
         {compareDelta && (
-          <p className="text-xs mt-1 font-semibold text-[#5D87FF]">{compareDelta}</p>
+          <p className="text-xs mt-1 font-semibold text-[#880d1e]">{compareDelta}</p>
         )}
       </div>
     </motion.div>

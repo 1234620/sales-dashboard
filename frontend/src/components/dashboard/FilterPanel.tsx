@@ -101,7 +101,7 @@ export function FilterPanel({
               type="checkbox"
               checked={compareToPrior}
               onChange={(e) => onCompareToPriorChange(e.target.checked)}
-              className="rounded border-gray-300 text-[#5D87FF] focus:ring-[#5D87FF]"
+              className="rounded border-gray-300 text-[#880d1e] focus:ring-[#880d1e]"
             />
             <span className="text-xs text-gray-500 group-hover:text-gray-800">
               Compare to prior period

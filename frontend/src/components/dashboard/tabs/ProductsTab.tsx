@@ -9,6 +9,7 @@ import {
   truncateLabel,
 } from "@/lib/chart-utils";
 import { formatCurrency, formatNumber } from "@/lib/format";
+import { palette } from "@/lib/palette";
 import { useMemo } from "react";
 import {
   Bar,
@@ -145,12 +146,12 @@ export function ProductsTab({ section }: ProductsTabProps) {
                       }}
                       labelFormatter={(label) => String(label)}
                     />
-                    <Bar dataKey="revenue" fill="#6366F1" name="Net Revenue" radius={[0, 4, 4, 0]}>
+                    <Bar dataKey="revenue" fill={palette.maroon} name="Net Revenue" radius={[0, 4, 4, 0]}>
                       <LabelList
                         dataKey="margin_pct"
                         position="right"
                         formatter={(val: number) => `${val.toFixed(1)}% margin`}
-                        fill="#10B981"
+                        fill={palette.crimson}
                         fontSize={10}
                         fontWeight={600}
                       />
@@ -206,7 +207,7 @@ export function ProductsTab({ section }: ProductsTabProps) {
                       width={200}
                     />
                     <Tooltip content={<SkuTooltip />} />
-                    <Bar dataKey="revenue" fill="#3B82F6" name="Revenue" radius={[0, 4, 4, 0]} />
+                    <Bar dataKey="revenue" fill={palette.crimson} name="Revenue" radius={[0, 4, 4, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </CardContent>

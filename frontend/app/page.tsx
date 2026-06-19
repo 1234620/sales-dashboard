@@ -1,490 +1,226 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { DashboardTabs } from "@/components/dashboard/DashboardTabs";
-import { InsightsPanel } from "@/components/dashboard/InsightsPanel";
-import { dashboardTheme } from "@/components/dashboard/theme";
-import {
-  countActiveFilters,
-  FilterPanel,
-  getDefaultFilters,
-  toFilterParams,
-} from "@/components/dashboard/FilterPanel";
-import { AnomaliesTab } from "@/components/dashboard/tabs/AnomaliesTab";
-import { ForecastingTab } from "@/components/dashboard/tabs/ForecastingTab";
-import { MarginsTab } from "@/components/dashboard/tabs/MarginsTab";
-import { OverviewTab } from "@/components/dashboard/tabs/OverviewTab";
-import { ProductsTab } from "@/components/dashboard/tabs/ProductsTab";
-import { RegionalTab } from "@/components/dashboard/tabs/RegionalTab";
-import { TrendsTab } from "@/components/dashboard/tabs/TrendsTab";
-import { useDebounce } from "@/hooks/useDebounce";
-import * as api from "@/lib/api";
-import { computeMape, normalizeDateKey } from "@/lib/chart-utils";
-import { priorPeriod } from "@/lib/date-ranges";
-import { exportElementToPdf, pdfFilename } from "@/lib/export-pdf";
-import { buildInsights } from "@/lib/insights";
-import { processTrendData } from "@/lib/trend-data";
-import type {
-  AnomaliesSection,
-  DashboardTab,
-  FilterState,
-  ForecastSection,
-  MarginsSection,
-  OverviewSection,
-  ProductsSection,
-  RegionalSection,
-  TrendGroupBy,
-  TrendsSection,
-} from "@/lib/types";
-import { formatNumber } from "@/lib/format";
+import { palette } from "@/lib/palette";
+import { motion } from "framer-motion";
+import { ArrowRight, BarChart3, LineChart, Sparkles, TrendingUp } from "lucide-react";
+import Link from "next/link";
 
-function emptySection<T>(): { data: T | null; loading: boolean; error: string | null } {
-  return { data: null, loading: true, error: null };
-}
+const FEATURES = [
+  { icon: BarChart3, label: "KPI Overview" },
+  { icon: TrendingUp, label: "Revenue Trends" },
+  { icon: LineChart, label: "Prophet Forecast" },
+  { icon: Sparkles, label: "Anomaly Detection" },
+];
 
-function getErrorMessage(err: unknown): string {
-  return err instanceof Error ? err.message : "Request failed";
-}
+const fadeUp = {
+  hidden: { opacity: 0, y: 32 },
+  visible: (i: number) => ({
+    opacity: 1,
+    y: 0,
+    transition: { delay: i * 0.12, duration: 0.6, ease: "easeOut" as const },
+  }),
+};
 
-export default function Dashboard() {
-  const [filters, setFilters] = useState<FilterState>(getDefaultFilters);
-  const [forecastHorizon, setForecastHorizon] = useState(6);
-  const [trendGroupBy, setTrendGroupBy] = useState<TrendGroupBy>(null);
-  const [activeTab, setActiveTab] = useState<DashboardTab>("overview");
-
-  const [overview, setOverview] = useState<OverviewSection>(emptySection);
-  const [regional, setRegional] = useState<RegionalSection>(emptySection);
-  const [products, setProducts] = useState<ProductsSection>(emptySection);
-  const [trends, setTrends] = useState<TrendsSection>(emptySection);
-  const [forecast, setForecast] = useState<ForecastSection>(emptySection);
-  const [anomalies, setAnomalies] = useState<AnomaliesSection>(emptySection);
-  const [margins, setMargins] = useState<MarginsSection>(emptySection);
-
-  const filterParams = useMemo(() => toFilterParams(filters), [filters]);
-  const debouncedFilterParams = useDebounce(filterParams, 300);
-  const priorFilterParams = useMemo(() => {
-    if (!filters.compareToPrior) return null;
-    const prior = priorPeriod({ startDate: filters.startDate, endDate: filters.endDate });
-    return {
-      ...filterParams,
-      startDate: prior.startDate,
-      endDate: prior.endDate,
-    };
-  }, [filters.compareToPrior, filters.startDate, filters.endDate, filterParams]);
-  const debouncedPriorFilterParams = useDebounce(priorFilterParams, 300);
-  const activeFilterCount = useMemo(() => countActiveFilters(filters), [filters]);
-  const dashboardRequestId = useRef(0);
-  const tabExportRef = useRef<HTMLDivElement>(null);
-  const [pdfExporting, setPdfExporting] = useState(false);
-  const [pdfError, setPdfError] = useState<string | null>(null);
-
-  const loadDashboardData = useCallback(async () => {
-    const requestId = ++dashboardRequestId.current;
-    await Promise.resolve();
-
-    if (requestId !== dashboardRequestId.current) return;
-
-    const setLoading = () => {
-      setOverview((s) => ({ ...s, loading: true, error: null }));
-      setRegional((s) => ({ ...s, loading: true, error: null }));
-      setProducts((s) => ({ ...s, loading: true, error: null }));
-      setTrends((s) => ({ ...s, loading: true, error: null }));
-      setAnomalies((s) => ({ ...s, loading: true, error: null }));
-      setMargins((s) => ({ ...s, loading: true, error: null }));
-    };
-
-    setLoading();
-
-    const groupBy = trendGroupBy ?? undefined;
-    const isStale = () => requestId !== dashboardRequestId.current;
-
-    const [
-      kpisResult,
-      trendResult,
-      yoyResult,
-      regionalResult,
-      productsCategoriesResult,
-      productsSkusResult,
-      productsHeatmapResult,
-      trendsResult,
-      anomaliesSeriesResult,
-      anomaliesFlaggedResult,
-      marginsReturnsResult,
-      marginsChannelResult,
-      marginsFestiveResult,
-      compareKpisResult,
-    ] = await Promise.allSettled([
-      api.fetchKPIs(debouncedFilterParams),
-      api.fetchRevenueTrend(debouncedFilterParams),
-      api.fetchYoYGrowth(debouncedFilterParams),
-      api.fetchRegional(debouncedFilterParams),
-      api.fetchCategories(debouncedFilterParams),
-      api.fetchTopSKUs(10, debouncedFilterParams),
-      api.fetchHeatmap(debouncedFilterParams),
-      api.fetchDailyRevenue(groupBy, debouncedFilterParams),
-      api.fetchAnomalies(debouncedFilterParams),
-      api.fetchAnomalies(debouncedFilterParams, { flaggedOnly: true }),
-      api.fetchReturns(debouncedFilterParams),
-      api.fetchChannelMix(debouncedFilterParams),
-      api.fetchFestiveUplift(debouncedFilterParams),
-      debouncedPriorFilterParams
-        ? api.fetchKPIs(debouncedPriorFilterParams)
-        : Promise.resolve(null),
-    ]);
-
-    if (isStale()) return;
-
-    const kpis = kpisResult.status === "fulfilled" ? kpisResult.value : null;
-    const trend = trendResult.status === "fulfilled" ? trendResult.value : null;
-    const yoy =
-      yoyResult.status === "fulfilled" ? yoyResult.value : { data: [] };
-    const compareKpis =
-      compareKpisResult.status === "fulfilled" ? compareKpisResult.value : null;
-
-    if (kpis && trend) {
-      setOverview({
-        data: { kpis, trend, yoy, compareKpis },
-        loading: false,
-        error: null,
-      });
-    } else {
-      const err =
-        kpisResult.status === "rejected"
-          ? getErrorMessage(kpisResult.reason)
-          : trendResult.status === "rejected"
-            ? getErrorMessage(trendResult.reason)
-            : "Failed to load overview data";
-      setOverview((s) => ({ ...s, loading: false, error: err }));
-    }
-
-      if (regionalResult.status === "fulfilled") {
-        setRegional({ data: regionalResult.value, loading: false, error: null });
-      } else {
-        setRegional((s) => ({
-          ...s,
-          loading: false,
-          error: getErrorMessage(regionalResult.reason),
-        }));
-      }
-
-      const categoriesOk = productsCategoriesResult.status === "fulfilled";
-      const skusOk = productsSkusResult.status === "fulfilled";
-      const heatmapOk = productsHeatmapResult.status === "fulfilled";
-      if (categoriesOk && skusOk) {
-        setProducts({
-          data: {
-            categories: productsCategoriesResult.value,
-            skus: productsSkusResult.value,
-            heatmap: heatmapOk ? productsHeatmapResult.value : null,
-          },
-          loading: false,
-          error: null,
-        });
-      } else {
-        const err =
-          productsCategoriesResult.status === "rejected"
-            ? getErrorMessage(productsCategoriesResult.reason)
-            : getErrorMessage(
-                productsSkusResult.status === "rejected"
-                  ? productsSkusResult.reason
-                  : "Failed to load SKU data",
-              );
-        setProducts((s) => ({ ...s, loading: false, error: err }));
-      }
-
-      if (trendsResult.status === "fulfilled") {
-        setTrends({ data: trendsResult.value, loading: false, error: null });
-      } else {
-        setTrends((s) => ({
-          ...s,
-          loading: false,
-          error: getErrorMessage(trendsResult.reason),
-        }));
-      }
-
-      if (
-        anomaliesSeriesResult.status === "fulfilled" &&
-        anomaliesFlaggedResult.status === "fulfilled"
-      ) {
-        setAnomalies({
-          data: {
-            series: anomaliesSeriesResult.value,
-            flagged: anomaliesFlaggedResult.value,
-          },
-          loading: false,
-          error: null,
-        });
-      } else {
-        const err =
-          anomaliesSeriesResult.status === "rejected"
-            ? getErrorMessage(anomaliesSeriesResult.reason)
-            : getErrorMessage(
-                anomaliesFlaggedResult.status === "rejected"
-                  ? anomaliesFlaggedResult.reason
-                  : "Failed to load anomalies",
-              );
-        setAnomalies((s) => ({ ...s, loading: false, error: err }));
-      }
-
-      const returnsOk = marginsReturnsResult.status === "fulfilled";
-      const channelOk = marginsChannelResult.status === "fulfilled";
-      const festiveOk = marginsFestiveResult.status === "fulfilled";
-      if (returnsOk && channelOk && festiveOk) {
-        setMargins({
-          data: {
-            returns: marginsReturnsResult.value,
-            channel: marginsChannelResult.value,
-            festive: marginsFestiveResult.value,
-          },
-          loading: false,
-          error: null,
-        });
-      } else {
-        const err = !returnsOk
-          ? getErrorMessage(
-              marginsReturnsResult.status === "rejected"
-                ? marginsReturnsResult.reason
-                : "Failed",
-            )
-          : !channelOk
-            ? getErrorMessage(
-                marginsChannelResult.status === "rejected"
-                  ? marginsChannelResult.reason
-                  : "Failed",
-              )
-            : getErrorMessage(
-                marginsFestiveResult.status === "rejected"
-                  ? marginsFestiveResult.reason
-                  : "Failed",
-              );
-        setMargins((s) => ({ ...s, loading: false, error: err }));
-      }
-  }, [debouncedFilterParams, debouncedPriorFilterParams, trendGroupBy]);
-
-  const forecastMape = useMemo(() => {
-    if (!forecast.data?.validation?.length || !forecast.data.forecast?.length) {
-      return null;
-    }
-    const forecastByDs = new Map(
-      forecast.data.forecast.map((f) => [normalizeDateKey(f.ds), f.yhat]),
-    );
-    const mapePoints = forecast.data.validation.map((v) => ({
-      actual: v.y,
-      predicted: forecastByDs.get(normalizeDateKey(v.ds)) ?? 0,
-    }));
-    return computeMape(mapePoints);
-  }, [forecast.data]);
-
-  const insights = useMemo(
-    () =>
-      buildInsights({
-        overview,
-        regional,
-        anomalies,
-        forecastMape,
-      }),
-    [overview, regional, anomalies, forecastMape],
-  );
-
-  const forecastRequestId = useRef(0);
-
-  const loadForecastData = useCallback(async () => {
-    const requestId = ++forecastRequestId.current;
-    await Promise.resolve();
-    if (requestId !== forecastRequestId.current) return;
-    setForecast((s) => ({ ...s, loading: true, error: null }));
-    try {
-      const res = await api.fetchForecast(forecastHorizon);
-      if (requestId !== forecastRequestId.current) return;
-      if ("error" in res) {
-        setForecast({ data: null, loading: false, error: res.error });
-      } else {
-        setForecast({ data: res, loading: false, error: null });
-      }
-    } catch (err) {
-      if (requestId !== forecastRequestId.current) return;
-      setForecast({ data: null, loading: false, error: getErrorMessage(err) });
-    }
-  }, [forecastHorizon]);
-
-  useEffect(() => {
-    const handle = window.setTimeout(() => {
-      void loadDashboardData();
-    }, 0);
-    return () => window.clearTimeout(handle);
-  }, [loadDashboardData]);
-
-  useEffect(() => {
-    const handle = window.setTimeout(() => {
-      void loadForecastData();
-    }, 0);
-    return () => window.clearTimeout(handle);
-  }, [loadForecastData]);
-
-  const processedTrendData = useMemo(
-    () => processTrendData(trends.data, trendGroupBy),
-    [trends.data, trendGroupBy],
-  );
-
-  const toggleRegion = (reg: string) => {
-    setFilters((prev) => ({
-      ...prev,
-      selectedRegions: prev.selectedRegions.includes(reg)
-        ? prev.selectedRegions.filter((r) => r !== reg)
-        : [...prev.selectedRegions, reg],
-    }));
-  };
-
-  const toggleCategory = (cat: string) => {
-    setFilters((prev) => ({
-      ...prev,
-      selectedCategories: prev.selectedCategories.includes(cat)
-        ? prev.selectedCategories.filter((c) => c !== cat)
-        : [...prev.selectedCategories, cat],
-    }));
-  };
-
-  const toggleChannel = (ch: string) => {
-    setFilters((prev) => ({
-      ...prev,
-      selectedChannels: prev.selectedChannels.includes(ch)
-        ? prev.selectedChannels.filter((c) => c !== ch)
-        : [...prev.selectedChannels, ch],
-    }));
-  };
-
-  const resetFilters = () => setFilters(getDefaultFilters());
-
-  const handleExportPdf = async () => {
-    const el = tabExportRef.current;
-    if (!el) return;
-    setPdfExporting(true);
-    setPdfError(null);
-    try {
-      await exportElementToPdf(el, pdfFilename(activeTab));
-    } catch (err) {
-      setPdfError(err instanceof Error ? err.message : "PDF export failed");
-    } finally {
-      setPdfExporting(false);
-    }
-  };
-
-  const filterDashboardToRegion = (region: string) => {
-    setFilters((prev) => ({
-      ...prev,
-      selectedRegions: prev.selectedRegions.includes(region)
-        ? prev.selectedRegions
-        : [...prev.selectedRegions, region],
-    }));
-  };
-
-  const sectionLoading =
-    activeTab === "overview"
-      ? overview.loading
-      : activeTab === "regional"
-        ? regional.loading
-        : activeTab === "products"
-          ? products.loading
-          : activeTab === "trends"
-            ? trends.loading
-            : activeTab === "forecasting"
-              ? forecast.loading
-              : activeTab === "anomalies"
-                ? anomalies.loading
-                : margins.loading;
+function FloatingDashboardPreview() {
+  const bars = [42, 68, 55, 82, 61, 90, 74];
 
   return (
-    <div className={dashboardTheme.page}>
-      <header className={dashboardTheme.header}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 md:py-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div>
-            <h1 className={dashboardTheme.headerTitle}>Parasnath Distribution Group</h1>
-            <p className={dashboardTheme.headerSubtitle}>
-              FMCG Sales Performance & Forecasting Dashboard
-            </p>
+    <motion.div
+      initial={{ opacity: 0, y: 40 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.35, duration: 0.8 }}
+      className="relative w-full max-w-lg mx-auto"
+    >
+      <motion.div
+        animate={{ y: [0, -10, 0] }}
+        transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
+        className="rounded-2xl border border-gray-200 bg-white shadow-2xl shadow-[#880d1e]/10 overflow-hidden"
+      >
+        <div className="flex items-center gap-2 px-5 py-3 border-b border-gray-100 bg-gray-50">
+          <div className="w-2.5 h-2.5 rounded-full bg-[#dd2d4a]" />
+          <div className="w-2.5 h-2.5 rounded-full bg-[#f49cbb]" />
+          <div className="w-2.5 h-2.5 rounded-full bg-[#880d1e]" />
+          <span className="ml-2 text-xs font-medium text-gray-500">Sales Performance Dashboard</span>
+        </div>
+
+        <div className="p-5 md:p-6 space-y-5">
+          <div className="grid grid-cols-2 gap-3">
+            {[
+              { label: "Revenue", value: "₹12.4M" },
+              { label: "Margin", value: "18.2%" },
+              { label: "Velocity", value: "₹2.1L/d" },
+              { label: "Anomalies", value: "6 flagged" },
+            ].map((kpi, i) => (
+              <div
+                key={kpi.label}
+                className="rounded-xl border border-gray-100 bg-white p-3 shadow-sm"
+              >
+                <p className="text-[10px] uppercase tracking-wide text-gray-500 font-semibold">
+                  {kpi.label}
+                </p>
+                <p className="mt-1 text-sm font-bold text-[#0a0a0a]">{kpi.value}</p>
+                <div
+                  className="mt-2 h-0.5 w-8 rounded-full"
+                  style={{ backgroundColor: i % 2 === 0 ? palette.maroon : palette.crimson }}
+                />
+              </div>
+            ))}
           </div>
-          <div className={`text-right ${dashboardTheme.headerMeta}`}>
-            <p>
-              Transactions:{" "}
-              <span className={dashboardTheme.headerMetaAccent}>
-                {overview.data
-                  ? formatNumber(overview.data.kpis.total_transactions)
-                  : "—"}
-              </span>
-            </p>
-            <p className="mt-0.5">Updated June 2026</p>
+
+          <div className="rounded-xl border border-gray-100 bg-gray-50/80 p-4">
+            <p className="text-xs font-semibold text-gray-700 mb-3">Monthly revenue</p>
+            <div className="h-28 flex items-end gap-1.5">
+              {bars.map((h, i) => (
+                <motion.div
+                  key={i}
+                  className="flex-1 rounded-t-md"
+                  style={{
+                    background: `linear-gradient(to top, ${palette.maroon}, ${palette.pink})`,
+                  }}
+                  initial={{ height: 0 }}
+                  animate={{ height: `${h}%` }}
+                  transition={{ delay: 0.6 + i * 0.07, duration: 0.45 }}
+                />
+              ))}
+            </div>
           </div>
+
+          <div className="flex gap-2">
+            {[palette.maroon, palette.crimson, palette.pink, "#0a0a0a"].map((color) => (
+              <div
+                key={color}
+                className="h-2 flex-1 rounded-full opacity-80"
+                style={{ backgroundColor: color }}
+              />
+            ))}
+          </div>
+        </div>
+      </motion.div>
+
+      <motion.div
+        animate={{ y: [0, 8, 0] }}
+        transition={{ duration: 6, repeat: Infinity, ease: "easeInOut", delay: 1 }}
+        className="absolute -right-4 top-8 rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-lg hidden md:block"
+      >
+        <p className="text-[10px] text-gray-500 font-medium">West region</p>
+        <p className="text-sm font-bold" style={{ color: palette.maroon }}>
+          29.9% share
+        </p>
+      </motion.div>
+
+      <motion.div
+        animate={{ y: [0, -6, 0] }}
+        transition={{ duration: 5.5, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
+        className="absolute -left-4 bottom-12 rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-lg hidden md:block"
+      >
+        <p className="text-[10px] text-gray-500 font-medium">MoM growth</p>
+        <p className="text-sm font-bold" style={{ color: palette.crimson }}>
+          +8.4%
+        </p>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+export default function LandingPage() {
+  return (
+    <div className="relative min-h-screen overflow-hidden bg-white text-[#0a0a0a]">
+      <header className="relative z-10 border-b border-gray-100 bg-white">
+        <div className="max-w-6xl mx-auto px-6 py-5">
+          <Link href="/" className="inline-flex items-center gap-2.5">
+            <div
+              className="w-9 h-9 rounded-lg flex items-center justify-center"
+              style={{ backgroundColor: palette.maroon }}
+            >
+              <BarChart3 className="w-5 h-5 text-white" aria-hidden />
+            </div>
+            <span className="text-xl font-bold tracking-tight">
+              Sales<span style={{ color: palette.maroon }}>Analytics</span>
+            </span>
+          </Link>
         </div>
       </header>
 
-      <div className={dashboardTheme.main}>
-        <FilterPanel
-          filters={filters}
-          activeFilterCount={activeFilterCount}
-          onStartDateChange={(value) => setFilters((prev) => ({ ...prev, startDate: value }))}
-          onEndDateChange={(value) => setFilters((prev) => ({ ...prev, endDate: value }))}
-          onToggleRegion={toggleRegion}
-          onToggleCategory={toggleCategory}
-          onToggleChannel={toggleChannel}
-          onCompareToPriorChange={(enabled) =>
-            setFilters((prev) => ({ ...prev, compareToPrior: enabled }))
-          }
-          onExportPdf={() => void handleExportPdf()}
-          exportPdfDisabled={pdfExporting || sectionLoading}
-          onReset={resetFilters}
-        />
+      <main className="relative z-10 max-w-6xl mx-auto px-6 py-12 md:py-20">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center min-h-[calc(100vh-12rem)]">
+          <div>
+            <motion.h1
+              custom={0}
+              variants={fadeUp}
+              initial="hidden"
+              animate="visible"
+              className="text-4xl sm:text-5xl lg:text-[3.25rem] font-extrabold leading-[1.08] tracking-tight text-[#0a0a0a]"
+            >
+              Unleash clarity with top{" "}
+              <span style={{ color: palette.pink }}>sales insights</span>
+            </motion.h1>
 
-        {pdfError && (
-          <div className={`${dashboardTheme.error} mb-4`}>
-            PDF export failed: {pdfError}
+            <motion.p
+              custom={1}
+              variants={fadeUp}
+              initial="hidden"
+              animate="visible"
+              className="mt-6 text-base sm:text-lg text-gray-700 leading-relaxed max-w-lg"
+            >
+              Track FMCG revenue, forecast demand with Prophet, and flag anomalies — one
+              dashboard built for distribution teams who need signal, not noise.
+            </motion.p>
+
+            <motion.div
+              custom={2}
+              variants={fadeUp}
+              initial="hidden"
+              animate="visible"
+              className="mt-10"
+            >
+              <Link href="/dashboard">
+                <motion.span
+                  className="inline-flex items-center gap-2 px-8 py-4 rounded-lg text-white font-semibold text-base cursor-pointer shadow-lg"
+                  style={{
+                    backgroundColor: palette.maroon,
+                    boxShadow: `0 12px 32px ${palette.maroon}40`,
+                  }}
+                  whileHover={{ scale: 1.03, y: -2 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  Open Dashboard
+                  <ArrowRight className="w-5 h-5" aria-hidden />
+                </motion.span>
+              </Link>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 24 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.55 }}
+              className="mt-12 flex flex-wrap gap-2"
+            >
+              {FEATURES.map((item, i) => (
+                <motion.span
+                  key={item.label}
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.65 + i * 0.07 }}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border border-gray-200 bg-white text-gray-800"
+                >
+                  <item.icon className="w-3.5 h-3.5" style={{ color: palette.crimson }} />
+                  {item.label}
+                </motion.span>
+              ))}
+            </motion.div>
           </div>
-        )}
 
-        <InsightsPanel insights={insights} />
+          <div className="hidden sm:block">
+            <FloatingDashboardPreview />
+          </div>
+        </div>
+      </main>
 
-        <DashboardTabs
-          activeTab={activeTab}
-          onTabChange={setActiveTab}
-          exportRef={tabExportRef}
-          tabContent={{
-            overview: <OverviewTab section={overview} />,
-            regional: (
-              <RegionalTab
-                section={regional}
-                filterParams={filterParams}
-                onFilterDashboardToRegion={filterDashboardToRegion}
-              />
-            ),
-            products: <ProductsTab section={products} />,
-            trends: (
-              <TrendsTab
-                loading={trends.loading}
-                error={trends.error}
-                dailyRevenue={trends.data}
-                processedTrendData={processedTrendData}
-                trendGroupBy={trendGroupBy}
-                onTrendGroupByChange={setTrendGroupBy}
-              />
-            ),
-            forecasting: (
-              <ForecastingTab
-                section={forecast}
-                forecastHorizon={forecastHorizon}
-                onForecastHorizonChange={setForecastHorizon}
-              />
-            ),
-            anomalies: <AnomaliesTab section={anomalies} />,
-            margins: <MarginsTab section={margins} />,
-          }}
-        />
-      </div>
-
-      <footer className={dashboardTheme.footer}>
+      <footer className="relative z-10 py-8 text-center text-xs text-gray-500 border-t border-gray-100">
         <p>
-          Built by <span className={dashboardTheme.footerAccent}>Ahmed Moosani</span> — MBA Tech
-          (AI), MPSTME NMIMS Mumbai
+          Built by <span className="font-semibold text-[#0a0a0a]">Ahmed Moosani</span> — MBA
+          Tech (AI), MPSTME NMIMS Mumbai · 2026
         </p>
-        <p className="mt-1">Internship Project at Parasnath Distribution Group | 2026</p>
       </footer>
     </div>
   );

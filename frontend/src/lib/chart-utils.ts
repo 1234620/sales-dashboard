@@ -54,10 +54,10 @@ export function computeMape(
 }
 
 export function upliftBarColor(pct: number): string {
-  if (pct >= 40) return "#10B981";
-  if (pct >= 20) return "#6366F1";
-  if (pct >= 0) return "#F59E0B";
-  return "#EF4444";
+  if (pct >= 40) return "#880d1e";
+  if (pct >= 20) return "#dd2d4a";
+  if (pct >= 0) return "#f49cbb";
+  return "#6e0a18";
 }
 
 export function normalizeDateKey(ds: string): string {

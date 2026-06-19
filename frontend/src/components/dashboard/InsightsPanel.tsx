@@ -17,16 +17,16 @@ export function InsightsPanel({ insights }: InsightsPanelProps) {
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="w-full flex items-center justify-between gap-3 px-5 py-3 text-left hover:bg-amber-100/50 transition-colors"
+        className="w-full flex items-center justify-between gap-3 px-5 py-3 text-left hover:bg-[#f49cbb]/20 transition-colors"
       >
         <span className={`flex items-center gap-2 ${dashboardTheme.insightsTitle}`}>
-          <Lightbulb className="h-4 w-4 text-amber-600" aria-hidden />
+          <Lightbulb className="h-4 w-4 text-[#dd2d4a]" aria-hidden />
           Insights
         </span>
         {open ? (
-          <ChevronUp className="h-4 w-4 text-amber-700" aria-hidden />
+          <ChevronUp className="h-4 w-4 text-[#880d1e]" aria-hidden />
         ) : (
-          <ChevronDown className="h-4 w-4 text-amber-700" aria-hidden />
+          <ChevronDown className="h-4 w-4 text-[#880d1e]" aria-hidden />
         )}
       </button>
       <AnimatePresence initial={false}>
@@ -40,7 +40,7 @@ export function InsightsPanel({ insights }: InsightsPanelProps) {
           >
             {insights.map((line) => (
               <li key={line} className={`${dashboardTheme.insightsText} flex gap-2`}>
-                <span className="text-amber-600 shrink-0">•</span>
+                <span className="text-[#dd2d4a] shrink-0">•</span>
                 <span>{line}</span>
               </li>
             ))}

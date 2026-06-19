@@ -1,12 +1,12 @@
 export const CHART_COLORS = [
-  "#5D87FF",
-  "#49BEFF",
-  "#13DEB9",
-  "#FFAE1F",
-  "#FA896B",
-  "#763EBD",
-  "#01C0C8",
-  "#0074BA",
+  "#880d1e",
+  "#dd2d4a",
+  "#f49cbb",
+  "#6e0a18",
+  "#0a0a0a",
+  "#c42d48",
+  "#fce4ef",
+  "#a80c22",
 ] as const;
 
 /** Distinct palette + dash patterns for multi-series trend lines (6+ groups). */

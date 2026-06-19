@@ -10,6 +10,7 @@ import {
   formatYearMonth,
 } from "@/lib/chart-utils";
 import { formatCurrency, formatNumber, formatPercent } from "@/lib/format";
+import { palette } from "@/lib/palette";
 import { Button } from "@/components/ui/button";
 import {
   Area,
@@ -17,6 +18,7 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
+  Cell,
   ReferenceLine,
   ResponsiveContainer,
   Tooltip,
@@ -224,8 +226,8 @@ export function OverviewTab({ section }: OverviewTabProps) {
                 >
                   <defs>
                     <linearGradient id="revenueGlow" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#6366F1" stopOpacity={0.4} />
-                      <stop offset="95%" stopColor="#6366F1" stopOpacity={0.0} />
+                      <stop offset="5%" stopColor={palette.maroon} stopOpacity={0.4} />
+                      <stop offset="95%" stopColor={palette.maroon} stopOpacity={0.0} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
@@ -260,7 +262,7 @@ export function OverviewTab({ section }: OverviewTabProps) {
                   <Area
                     type="monotone"
                     dataKey="revenue"
-                    stroke="#6366F1"
+                    stroke={palette.maroon}
                     strokeWidth={3}
                     fill="url(#revenueGlow)"
                   />
@@ -308,10 +310,18 @@ export function OverviewTab({ section }: OverviewTabProps) {
                   />
                   <Bar
                     dataKey="yoy_growth_pct"
-                    fill="#6366F1"
                     name="YoY Growth"
                     radius={[4, 4, 0, 0]}
-                  />
+                  >
+                    {yoyChartData.map((entry) => (
+                      <Cell
+                        key={entry.label}
+                        fill={
+                          (entry.yoy_growth_pct ?? 0) >= 0 ? palette.crimson : palette.maroon
+                        }
+                      />
+                    ))}
+                  </Bar>
                 </BarChart>
               </ResponsiveContainer>
             </CardContent>

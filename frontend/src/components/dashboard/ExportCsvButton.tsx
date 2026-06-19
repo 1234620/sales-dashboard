@@ -25,7 +25,7 @@ export function ExportCsvButton<T extends object>({
       variant="outline"
       size="sm"
       disabled={disabled || rows.length === 0}
-      className="text-xs border-gray-200 text-gray-700 hover:text-[#5D87FF] hover:border-[#5D87FF] bg-white"
+      className="text-xs border-gray-200 text-gray-800 hover:text-[#880d1e] hover:border-[#f49cbb] bg-white"
       onClick={() => downloadRowsCsv(tab, rows, columns, suffix)}
     >
       {label}

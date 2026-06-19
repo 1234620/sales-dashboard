@@ -93,9 +93,15 @@ def yoy_growth(df: pd.DataFrame) -> pd.DataFrame:
 
     current_year = int(years[-1])
     prior_year = int(years[-2])
+    current_year_data = monthly[monthly["year"] == current_year]
+    if current_year_data.empty:
+        return pd.DataFrame(
+            columns=["month", "label", "yoy_growth_pct", "current_revenue", "prior_revenue"]
+        )
+    max_month = int(current_year_data["month"].max())
 
     rows = []
-    for month in range(1, 13):
+    for month in range(1, max_month + 1):
         curr_row = monthly[(monthly["year"] == current_year) & (monthly["month"] == month)]
         prior_row = monthly[(monthly["year"] == prior_year) & (monthly["month"] == month)]
         current_rev = float(curr_row["revenue"].sum()) if not curr_row.empty else 0.0

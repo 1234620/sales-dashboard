@@ -20,13 +20,14 @@ npm install    # first time only
 npm run dev    # http://localhost:3000
 ```
 
-Open **http://localhost:3000** in your browser. Do not use `streamlit run` or port 8501.
+Open **http://localhost:3000** for the landing page, or **http://localhost:3000/dashboard** for the dashboard directly.
 
 ## Project layout
 
 | Path | Purpose |
 |------|---------|
-| `app/page.tsx` | Main dashboard shell — filters, tab routing, data fetching |
+| `app/page.tsx` | Landing page with CTA → dashboard |
+| `app/dashboard/page.tsx` | Main dashboard shell — filters, tab routing, data fetching |
 | `src/components/dashboard/tabs/` | One file per tab (Overview, Regional, Products, Trends, Forecasting, Anomalies, Margins) |
 | `src/lib/api.ts` | HTTP client → FastAPI (`NEXT_PUBLIC_API_URL`, default `http://localhost:8000`) |
 | `src/lib/chart-utils.ts` | Shared axis formatting, tick intervals, MAPE helper |

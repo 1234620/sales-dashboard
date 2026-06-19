@@ -1,17 +1,17 @@
 "use client";
 
 import { CHART_COLORS } from "@/components/dashboard/constants";
-import { PiePercentLabel, PieSliceLabel } from "@/components/dashboard/chart-primitives";
+import { PieSliceLabel } from "@/components/dashboard/chart-primitives";
 import { ExportCsvButton } from "@/components/dashboard/ExportCsvButton";
 import { TabSection } from "@/components/dashboard/MetricCard";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import * as api from "@/lib/api";
 import type { FilterParams, RegionalSection, StateData } from "@/lib/types";
-import { CHART_LEGEND_STYLE, CHART_TOOLTIP_STYLE } from "@/lib/chart-utils";
+import { CHART_TOOLTIP_STYLE } from "@/lib/chart-utils";
 import { formatCurrency, formatPercent } from "@/lib/format";
 import { useCallback, useState } from "react";
-import { Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
+import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 
 interface RegionalTabProps {
   section: RegionalSection;
@@ -63,7 +63,7 @@ export function RegionalTab({
               <button
                 type="button"
                 onClick={resetDrillDown}
-                className="text-[#5D87FF] hover:text-[#5D87FF] font-semibold"
+                className="text-[#880d1e] hover:text-[#880d1e] font-semibold"
               >
                 All Regions
               </button>
@@ -137,20 +137,6 @@ export function RegionalTab({
                         />
                       ))}
                     </Pie>
-                    <Pie
-                      data={regionalData}
-                      dataKey="revenue"
-                      nameKey="region"
-                      cx="50%"
-                      cy="50%"
-                      outerRadius={95}
-                      innerRadius={58}
-                      fill="none"
-                      stroke="none"
-                      label={PiePercentLabel}
-                      labelLine={{ stroke: "#64748b", strokeWidth: 1 }}
-                      isAnimationActive={false}
-                    />
                     <Tooltip
                       contentStyle={CHART_TOOLTIP_STYLE}
                       formatter={(val: number, _name, item) => [
@@ -158,7 +144,6 @@ export function RegionalTab({
                         item.payload.region,
                       ]}
                     />
-                    <Legend wrapperStyle={CHART_LEGEND_STYLE} iconType="circle" />
                   </PieChart>
                 </ResponsiveContainer>
               </CardContent>
@@ -173,28 +158,31 @@ export function RegionalTab({
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {regionalData.map((reg) => (
+                  {regionalData.map((reg, index) => (
                     <button
                       type="button"
                       key={reg.region}
                       onClick={() => void handleRegionSelect(reg.region)}
                       className={`w-full p-4 rounded-xl border flex items-center justify-between text-left transition-all ${
                         selectedRegion === reg.region
-                          ? "bg-[#5D87FF]/5 border-[#5D87FF]/50"
-                          : "bg-gray-50 border-gray-200 hover:border-[#5D87FF]/40"
+                          ? "bg-[#880d1e]/5 border-[#880d1e]/50"
+                          : "bg-gray-50 border-gray-200 hover:border-[#880d1e]/40"
                       }`}
                     >
                       <div>
                         <p className="font-bold text-gray-800">{reg.region}</p>
                         <div className="w-48 bg-gray-100 rounded-full h-1.5 mt-2">
                           <div
-                            className="bg-indigo-500 h-1.5 rounded-full"
-                            style={{ width: `${reg.share_pct}%` }}
+                            className="h-1.5 rounded-full"
+                            style={{
+                              width: `${reg.share_pct}%`,
+                              backgroundColor: CHART_COLORS[index % CHART_COLORS.length],
+                            }}
                           />
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="font-extrabold text-[#5D87FF]">
+                        <p className="font-extrabold text-[#880d1e]">
                           {formatCurrency(reg.revenue)}
                         </p>
                         <p className="text-xs text-gray-500 mt-1">
@@ -262,7 +250,7 @@ export function RegionalTab({
                             <td className="py-3 px-4 font-semibold text-gray-800">
                               {row.state}
                             </td>
-                            <td className="py-3 px-4 text-right text-[#5D87FF]">
+                            <td className="py-3 px-4 text-right text-[#880d1e]">
                               {formatCurrency(row.revenue)}
                             </td>
                             <td className="py-3 px-4 text-right text-gray-500">

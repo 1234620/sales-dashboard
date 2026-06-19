@@ -25,8 +25,20 @@
 ---
 
 <div align="center">
-  <img src="assets/dashboard.png" alt="Regional revenue distribution — live dashboard screenshot" width="800">
-  <p><em>Regional Revenue Distribution tab — Next.js dashboard (live UI screenshot)</em></p>
+  <img src="assets/landing.png" alt="SalesAnalytics landing page" width="900">
+  <p><em>Landing page — branded hero with floating dashboard preview</em></p>
+</div>
+
+---
+
+<div align="center">
+
+| Regional analysis | Revenue trends |
+| :---: | :---: |
+| <img src="assets/regional-revenue-distribution.png" alt="Regional Revenue Distribution" width="420"> | <img src="assets/revenue-trend-moving-averages.png" alt="Revenue Trend with Moving Averages" width="420"> |
+| Prophet forecast | Anomaly detection |
+| <img src="assets/ml-revenue-forecast.png" alt="Machine Learning Revenue Forecast" width="420"> | <img src="assets/daily-revenue-anomaly-timeline.png" alt="Daily Revenue Anomaly Timeline" width="420"> |
+
 </div>
 
 ---

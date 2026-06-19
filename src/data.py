@@ -66,6 +66,9 @@ def _enforce_types(df: pd.DataFrame) -> pd.DataFrame:
     if "return_flag" in df.columns:
         df["return_flag"] = df["return_flag"].astype(bool)
 
+    if "stock_constrained" in df.columns:
+        df["stock_constrained"] = df["stock_constrained"].astype(bool)
+
     numeric_cols = ["quantity", "unit_price", "discount_pct", "net_revenue"]
     for col in numeric_cols:
         if col in df.columns:
@@ -129,6 +132,9 @@ def _clean(df: pd.DataFrame) -> pd.DataFrame:
     # Fill missing return_flag with False
     if "return_flag" in df.columns:
         df["return_flag"] = df["return_flag"].fillna(False)
+
+    if "stock_constrained" in df.columns:
+        df["stock_constrained"] = df["stock_constrained"].fillna(False)
 
     # Add derived columns
     df["year"] = df["date"].dt.year

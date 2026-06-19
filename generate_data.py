@@ -2,7 +2,7 @@
 Synthetic FMCG Distribution Sales Data Generator
 =================================================
 
-Generates ~82,000 realistic B2B distribution transaction records for the
+Generates ~100,000 realistic B2B distribution transaction records for the
 Sales Performance & Forecasting Dashboard.
 
 Business context: Mid-size FMCG distribution company in India importing
@@ -13,9 +13,14 @@ Features:
 - 5 FMCG product categories with ~90 real SKUs from stock reports
 - 6 Indian regions with weighted distribution (West/North heavy)
 - Festive season demand spikes (Diwali, Holi, Eid, Ramadan, etc.)
+- Price inflation over time with monthly noise
+- Repeat customer ordering cadence (7–45 day reorder gaps)
+- Month-end and quarter-end volume spikes
+- Region–channel correlation (offline-heavy West/North, more online in South)
+- Simulated stockouts on high-popularity SKUs (~2%)
 - ~45% repeat customer rate (retailers reorder frequently)
 - ~3% return rate (FMCG has low returns)
-- Offline/online channel split (72/28)
+- Offline/online channel split (72/28 baseline, adjusted by region)
 - Pareto (80/20) SKU popularity distribution
 - Carton-based quantities (B2B distribution)
 - Gradual upward revenue trend (simulating business growth)
@@ -27,11 +32,9 @@ Usage:
 import pandas as pd
 import numpy as np
 from faker import Faker
-from pathlib import Path
 import sys
 import os
 
-# Add project root to path so we can import config
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import config
 
@@ -45,7 +48,6 @@ np.random.seed(42)
 SKU_CATALOG = {
     "Beverages": {
         "skus": [
-            # From FG Stock Report — Pran brand beverages
             {"name": "LITCHI-DRINK-150ML-72PCS",     "price_range": (380, 520),   "popularity": 0.14},
             {"name": "LITCHI-DRINK-250ML-48PCS",     "price_range": (480, 650),   "popularity": 0.09},
             {"name": "DRINKO-250ML-LITCHI-COCONUT",  "price_range": (350, 480),   "popularity": 0.07},
@@ -65,7 +67,6 @@ SKU_CATALOG = {
     },
     "Bakery & Biscuits": {
         "skus": [
-            # From FG Stock Report — Potata biscuits + Malkist crackers
             {"name": "POTATA-BISCUIT-75GM-48PCS",    "price_range": (420, 580),   "popularity": 0.12},
             {"name": "POTATA-CREAM-ONION-75GM-48PCS","price_range": (430, 590),   "popularity": 0.10},
             {"name": "POTATA-BBQ-75GM-48PCS",        "price_range": (420, 580),   "popularity": 0.05},
@@ -89,7 +90,6 @@ SKU_CATALOG = {
     },
     "Confectionery": {
         "skus": [
-            # From Order Sheet — Kopiko, Choki Choki, Jam O Jam
             {"name": "KOPIKO-100PCS-BAG",            "price_range": (180, 280),   "popularity": 0.05},
             {"name": "KOPIKO-BUCKET",                "price_range": (650, 900),   "popularity": 0.04},
             {"name": "KOPIKO-JAR-12PCS",             "price_range": (1200, 1600), "popularity": 0.03},
@@ -103,7 +103,6 @@ SKU_CATALOG = {
             {"name": "JAM-O-JAM-STRAWBERRY",         "price_range": (200, 320),   "popularity": 0.03},
             {"name": "JAM-O-JAM-BLUEBERRY",          "price_range": (200, 320),   "popularity": 0.03},
             {"name": "JAM-O-JAM-SMALL",              "price_range": (150, 250),   "popularity": 0.02},
-            # From FG Stock Report — Confectionery section
             {"name": "CHOCO-BEAN-PETJAR-DOGGY-20X6", "price_range": (750, 1050),  "popularity": 0.06},
             {"name": "CHOCO-BEAN-PETJAR-FEDER-20X6", "price_range": (750, 1050),  "popularity": 0.04},
             {"name": "CHOCOBEAN-TOFFEE-20GM",        "price_range": (180, 280),   "popularity": 0.02},
@@ -124,7 +123,6 @@ SKU_CATALOG = {
     },
     "Culinary": {
         "skus": [
-            # From FG Stock Report — Culinary section
             {"name": "MR-NOODLES-60GM-KOREAN-SPICY-48PCS", "price_range": (580, 800),  "popularity": 0.40},
             {"name": "CUP-NOODLES-40GM-CHICKEN-48PCS",     "price_range": (650, 880),  "popularity": 0.18},
             {"name": "MR-NOODLES-50GM-CHICKEN-MASALA-60PCS","price_range": (520, 720),  "popularity": 0.15},
@@ -134,7 +132,6 @@ SKU_CATALOG = {
     },
     "Spice Mixes": {
         "skus": [
-            # From Parasnath Warehouse Shan Stocks
             {"name": "SHAN-BIRYANI",                 "price_range": (1600, 2200), "popularity": 0.08},
             {"name": "SHAN-SPECIAL-BOMBAY-BIRYANI",  "price_range": (1600, 2200), "popularity": 0.15},
             {"name": "SHAN-PUNJABI-YAKHNI-PILAU",    "price_range": (1600, 2200), "popularity": 0.10},
@@ -169,64 +166,158 @@ def generate_dates() -> pd.DatetimeIndex:
     return pd.date_range(start=config.DATE_START, end=config.DATE_END, freq="D")
 
 
+def inflation_factor(
+    transaction_date: pd.Timestamp,
+    date_start: str = None,
+    annual_rate: float = None,
+    monthly_noise: float = None,
+) -> float:
+    """Compound annual inflation with optional ±monthly noise."""
+    date_start = date_start or config.DATE_START
+    annual_rate = annual_rate if annual_rate is not None else config.PRICE_INFLATION_ANNUAL
+    monthly_noise = (
+        monthly_noise if monthly_noise is not None else config.PRICE_INFLATION_MONTHLY_NOISE
+    )
+    start = pd.Timestamp(date_start)
+    years_elapsed = max((transaction_date - start).days / 365.25, 0)
+    base = (1 + annual_rate) ** years_elapsed
+    noise = np.random.uniform(-monthly_noise, monthly_noise)
+    return base * (1 + noise)
+
+
+def period_close_multiplier(date: pd.Timestamp) -> float:
+    """Month-end and quarter-end B2B closing spikes (compose with festive logic)."""
+    multiplier = 1.0
+    days_in_month = pd.Timestamp(date.year, date.month, 1).days_in_month
+    if date.day >= days_in_month - 2:
+        lo, hi = config.MONTH_END_SPIKE_RANGE
+        multiplier *= np.random.uniform(lo, hi)
+    if date.month in config.QUARTER_END_MONTHS and date.day >= days_in_month - 4:
+        lo, hi = config.QUARTER_END_SPIKE_RANGE
+        multiplier *= np.random.uniform(lo, hi)
+    return multiplier
+
+
+def region_channel_probs(region: str) -> tuple[float, float]:
+    """Return normalized (offline, online) probabilities for a region."""
+    bias = config.REGION_CHANNEL_BIAS.get(region, {"offline": 0.0, "online": 0.0})
+    offline = max(0.01, config.CHANNELS["offline"] + bias.get("offline", 0.0))
+    online = max(0.01, config.CHANNELS["online"] + bias.get("online", 0.0))
+    total = offline + online
+    return offline / total, online / total
+
+
+def sample_reorder_gap() -> int:
+    """Days until next repeat order (log-normal, clipped to configured range)."""
+    gap = int(np.round(np.random.lognormal(mean=3.0, sigma=0.35)))
+    return int(np.clip(gap, config.REORDER_GAP_MIN_DAYS, config.REORDER_GAP_MAX_DAYS))
+
+
+def pick_repeat_customer(
+    date: pd.Timestamp,
+    repeat_pool: list,
+    last_order_date: dict,
+) -> str | None:
+    """Pick a repeat customer respecting minimum reorder gap; prefer 7–45 day window."""
+    eligible = []
+    weights = []
+    for customer_id in repeat_pool:
+        if customer_id not in last_order_date:
+            eligible.append(customer_id)
+            weights.append(1.5)
+            continue
+        gap_days = (date - last_order_date[customer_id]).days
+        if gap_days < config.REORDER_GAP_MIN_DAYS:
+            continue
+        weight = 2.5 if gap_days <= config.REORDER_GAP_MAX_DAYS else 0.6
+        eligible.append(customer_id)
+        weights.append(weight)
+
+    if not eligible:
+        return None
+
+    weights_arr = np.array(weights, dtype=float)
+    weights_arr /= weights_arr.sum()
+    return np.random.choice(eligible, p=weights_arr)
+
+
+def apply_stock_constraint(quantity: int, popularity: float) -> tuple[int, bool]:
+    """
+    Simulate stockouts on high-popularity SKUs (~2% probability).
+    Returns (adjusted_quantity, stock_constrained).
+    """
+    if popularity < config.HIGH_POPULARITY_THRESHOLD:
+        return quantity, False
+    if np.random.random() >= config.STOCKOUT_PROBABILITY:
+        return quantity, False
+
+    reduction = np.random.uniform(0.30, 0.70)
+    adjusted = max(1, int(round(quantity * (1 - reduction))))
+    return adjusted, True
+
+
 def get_daily_transaction_count(date: pd.Timestamp) -> int:
     """
     Determine how many transactions happen on a given date.
-    Accounts for weekday vs weekend, festive seasons, and growth trend.
+    Accounts for weekday vs weekend, festive seasons, growth trend,
+    and month/quarter-end spikes.
     """
-    # Base: ~65 transactions/day
     base = 65
 
-    # Weekend boost (Sat/Sun: 15% more)
     if date.dayofweek >= 5:
         base = int(base * 1.15)
 
-    # Gradual growth: ~0.4% per month from start (FMCG steady growth)
     months_elapsed = (date.year - 2023) * 12 + date.month
     growth_factor = 1 + (months_elapsed * 0.004)
     base = int(base * growth_factor)
 
-    # Festive season multipliers
-    for festival, window in config.FESTIVE_WINDOWS.items():
-        if (date.month == window["month"]
-            and window["day_start"] <= date.day <= window["day_end"]):
+    for window in config.FESTIVE_WINDOWS.values():
+        if date.month == window["month"] and window["day_start"] <= date.day <= window["day_end"]:
             base = int(base * window["multiplier"])
             break
 
-    # Summer boost for beverages (handled at transaction level via category weight)
-    # Beverages sell more in summer (May–July), reflected in higher overall volume
     if date.month in [5, 6, 7]:
         base = int(base * 1.08)
 
-    # Add some daily randomness (±18%)
+    base = int(base * period_close_multiplier(date))
     base = int(base * np.random.uniform(0.82, 1.18))
 
     return max(base, 10)
 
 
-def _get_sku_for_category(category: str) -> tuple:
-    """
-    Select a SKU from the catalog using Pareto-weighted popularity.
-
-    Returns:
-        (sku_name, price) tuple
-    """
+def _get_sku_for_category(category: str, date: pd.Timestamp) -> tuple[str, float, float]:
+    """Select a SKU and inflation-adjusted price. Returns (sku_name, price, popularity)."""
     cat_data = SKU_CATALOG[category]
     skus = cat_data["skus"]
 
-    # Extract names and popularity weights
     names = [s["name"] for s in skus]
     weights = np.array([s["popularity"] for s in skus])
-    weights = weights / weights.sum()  # Normalize
+    weights = weights / weights.sum()
 
-    # Select SKU
     idx = np.random.choice(len(names), p=weights)
     selected = skus[idx]
 
-    # Price within the SKU's specific range
-    price = round(np.random.uniform(*selected["price_range"]), 2)
+    base_price = np.random.uniform(*selected["price_range"])
+    price = round(base_price * inflation_factor(date), 2)
 
-    return selected["name"], price
+    return selected["name"], price, selected["popularity"]
+
+
+def _pick_category_weights(date: pd.Timestamp, cat_names: list, cat_weights: list) -> list:
+    adjusted_weights = list(cat_weights)
+    if date.month in [5, 6, 7]:
+        bev_idx = cat_names.index("Beverages")
+        spice_idx = cat_names.index("Spice Mixes")
+        adjusted_weights[bev_idx] *= 1.3
+        adjusted_weights[spice_idx] *= 0.7
+    elif date.month in [3, 4]:
+        spice_idx = cat_names.index("Spice Mixes")
+        cul_idx = cat_names.index("Culinary")
+        adjusted_weights[spice_idx] *= 1.6
+        adjusted_weights[cul_idx] *= 1.3
+
+    total_w = sum(adjusted_weights)
+    return [w / total_w for w in adjusted_weights]
 
 
 def generate_transactions(dates: pd.DatetimeIndex) -> pd.DataFrame:
@@ -234,93 +325,58 @@ def generate_transactions(dates: pd.DatetimeIndex) -> pd.DataFrame:
     records = []
     txn_counter = 1
 
-    # Pre-generate customer pool (retailers / shops)
-    # FMCG distributors serve ~2,000–5,000 retail outlets
     n_customers = 4_500
     customer_ids = [f"RET-{i:05d}" for i in range(1, n_customers + 1)]
-
-    # Create repeat customer pool (~45% of customers are regulars)
     n_repeat = int(n_customers * config.REPEAT_CUSTOMER_RATE)
     repeat_pool = customer_ids[:n_repeat]
 
-    # Category weights for random selection
     cat_names = list(config.CATEGORIES.keys())
     cat_weights = [config.CATEGORIES[c]["weight"] for c in cat_names]
-
-    # Region weights
     region_names = list(config.REGIONS.keys())
     region_weights = [config.REGIONS[r]["weight"] for r in region_names]
-
-    # Channel weights
     channel_names = list(config.CHANNELS.keys())
-    channel_weights = list(config.CHANNELS.values())
 
-    customer_idx = n_repeat  # Start assigning new customers from after repeat pool
+    last_order_date: dict[str, pd.Timestamp] = {}
+    customer_idx = n_repeat
 
     print(f"Generating FMCG distribution transactions from {config.DATE_START} to {config.DATE_END}...")
 
     for date in dates:
         n_txns = get_daily_transaction_count(date)
+        adjusted_weights = _pick_category_weights(date, cat_names, cat_weights)
 
         for _ in range(n_txns):
-            # Pick category (with seasonal adjustment for beverages in summer)
-            adjusted_weights = list(cat_weights)
-            if date.month in [5, 6, 7]:
-                # Summer: boost beverages, slight dip in spice mixes
-                bev_idx = cat_names.index("Beverages")
-                spice_idx = cat_names.index("Spice Mixes")
-                adjusted_weights[bev_idx] *= 1.3
-                adjusted_weights[spice_idx] *= 0.7
-
-            elif date.month in [3, 4]:
-                # Ramadan/Eid season: boost spice mixes & culinary
-                spice_idx = cat_names.index("Spice Mixes")
-                cul_idx = cat_names.index("Culinary")
-                adjusted_weights[spice_idx] *= 1.6
-                adjusted_weights[cul_idx] *= 1.3
-
-            # Normalize weights
-            total_w = sum(adjusted_weights)
-            adjusted_weights = [w / total_w for w in adjusted_weights]
-
             category = np.random.choice(cat_names, p=adjusted_weights)
+            product_sku, unit_price, popularity = _get_sku_for_category(category, date)
 
-            # Get SKU and price from catalog
-            product_sku, unit_price = _get_sku_for_category(category)
-
-            # Quantity: cartons per order (FMCG B2B)
-            # Most orders are 1-10 cartons, some bulk orders 10-50
             if np.random.random() < 0.15:
-                # Bulk order
                 quantity = np.random.randint(10, 51)
             else:
-                # Standard order
-                quantity = np.random.choice(
+                quantity = int(np.random.choice(
                     [1, 1, 2, 2, 3, 3, 4, 5, 5, 6, 7, 8],
-                    p=[0.10, 0.10, 0.15, 0.15, 0.12, 0.12, 0.08, 0.06, 0.04, 0.04, 0.02, 0.02]
-                )
+                    p=[0.10, 0.10, 0.15, 0.15, 0.12, 0.12, 0.08, 0.06, 0.04, 0.04, 0.02, 0.02],
+                ))
 
-            # Discount (trade discount: 0-18%, weighted toward lower discounts)
+            quantity, stock_constrained = apply_stock_constraint(quantity, popularity)
+
             discount_pct = round(np.random.beta(1.2, 6) * config.DISCOUNT_RANGE[1], 4)
-
-            # Net revenue
             net_revenue = round(unit_price * quantity * (1 - discount_pct), 2)
 
-            # Customer (repeat vs new)
             if np.random.random() < config.REPEAT_CUSTOMER_RATE and repeat_pool:
-                customer_id = np.random.choice(repeat_pool)
+                customer_id = pick_repeat_customer(date, repeat_pool, last_order_date)
+                if customer_id is None:
+                    customer_id = customer_ids[min(customer_idx, len(customer_ids) - 1)]
+                    customer_idx = (customer_idx + 1) % len(customer_ids)
             else:
                 customer_id = customer_ids[min(customer_idx, len(customer_ids) - 1)]
                 customer_idx = (customer_idx + 1) % len(customer_ids)
 
-            # Region and state
+            last_order_date[customer_id] = date
+
             region = np.random.choice(region_names, p=region_weights)
             state = np.random.choice(config.REGIONS[region]["states"])
-
-            # Channel
-            channel = np.random.choice(channel_names, p=channel_weights)
-
-            # Return flag (FMCG has very low return rate)
+            offline_p, online_p = region_channel_probs(region)
+            channel = np.random.choice(channel_names, p=[offline_p, online_p])
             return_flag = np.random.random() < config.RETURN_RATE
 
             records.append({
@@ -337,10 +393,31 @@ def generate_transactions(dates: pd.DatetimeIndex) -> pd.DataFrame:
                 "state": state,
                 "channel": channel,
                 "return_flag": return_flag,
+                "stock_constrained": stock_constrained,
             })
             txn_counter += 1
 
     return pd.DataFrame(records)
+
+
+def print_region_channel_crosstab(df: pd.DataFrame) -> None:
+    """Print region × channel revenue share for sanity-checking correlation."""
+    print("\nRegion × Channel revenue share (%):")
+    crosstab = pd.crosstab(df["region"], df["channel"], values=df["net_revenue"], aggfunc="sum")
+    crosstab = crosstab.fillna(0)
+    row_pct = crosstab.div(crosstab.sum(axis=1), axis=0) * 100
+    for region in row_pct.index:
+        offline_pct = row_pct.loc[region].get("offline", 0)
+        online_pct = row_pct.loc[region].get("online", 0)
+        print(f"  {region:12s}: offline {offline_pct:5.1f}% | online {online_pct:5.1f}%")
+
+
+def compute_repeat_purchase_rate(df: pd.DataFrame) -> float:
+    """Match KPI definition: % of transactions from repeat customers."""
+    customer_txns = df.groupby("customer_id")["transaction_id"].nunique()
+    repeat_customers = customer_txns[customer_txns > 1].index
+    repeat_txns = df[df["customer_id"].isin(repeat_customers)].shape[0]
+    return (repeat_txns / len(df) * 100) if len(df) > 0 else 0.0
 
 
 def main():
@@ -355,47 +432,53 @@ def main():
 
     df = generate_transactions(dates)
 
+    repeat_rate = compute_repeat_purchase_rate(df)
+
     print(f"\nGenerated {len(df):,} transactions")
     print(f"Unique retail customers: {df['customer_id'].nunique():,}")
     print(f"Unique SKUs: {df['product_sku'].nunique():,}")
     print(f"Revenue range: ₹{df['net_revenue'].min():,.2f} — ₹{df['net_revenue'].max():,.2f}")
     print(f"Total revenue: ₹{df['net_revenue'].sum():,.2f}")
+    print(f"Repeat purchase rate (txn %): {repeat_rate:.1f}%")
+    print(f"Stock-constrained rows: {df['stock_constrained'].sum():,} ({df['stock_constrained'].mean():.2%})")
 
-    # Category breakdown
     print("\nCategory distribution:")
     cat_counts = df["product_category"].value_counts()
     for cat, count in cat_counts.items():
         cat_rev = df[df["product_category"] == cat]["net_revenue"].sum()
         print(f"  {cat:20s}: {count:6,d} txns ({count/len(df)*100:.1f}%) | ₹{cat_rev:,.0f}")
 
-    # Region breakdown
     print("\nRegion distribution:")
     reg_counts = df["region"].value_counts()
     for reg, count in reg_counts.items():
         print(f"  {reg:20s}: {count:6,d} ({count/len(df)*100:.1f}%)")
 
-    # Channel breakdown
     print("\nChannel split:")
     ch_counts = df["channel"].value_counts(normalize=True)
     for ch, pct in ch_counts.items():
         print(f"  {ch:20s}: {pct:.1%}")
 
-    # Top 10 SKUs
+    print_region_channel_crosstab(df)
+
     print("\nTop 10 SKUs by revenue:")
     sku_rev = df.groupby("product_sku")["net_revenue"].sum().sort_values(ascending=False)
     for sku, rev in sku_rev.head(10).items():
         print(f"  {sku:45s}: ₹{rev:,.0f}")
 
-    # Business metrics
     print(f"\nAvg Order Value: ₹{df['net_revenue'].mean():,.0f}")
     print(f"Return rate: {df['return_flag'].mean():.2%}")
     print(f"Avg discount: {df['discount_pct'].mean():.2%}")
 
-    # Save
     config.SYNTHETIC_DATA_DIR.mkdir(parents=True, exist_ok=True)
     df.to_csv(config.SYNTHETIC_DATA_PATH, index=False)
     print(f"\n✅ Saved to {config.SYNTHETIC_DATA_PATH}")
     print(f"   File size: {config.SYNTHETIC_DATA_PATH.stat().st_size / 1024 / 1024:.1f} MB")
+
+    from src.process_data import process_sales_data
+
+    processed_path = process_sales_data(source=config.SYNTHETIC_DATA_PATH)
+    print(f"✅ Processed copy: {processed_path}")
+
 
 if __name__ == "__main__":
     main()

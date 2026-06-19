@@ -1,4 +1,54 @@
-# FMCG Distribution Dataset Replacement — Implementation Plan
+# FMCG Distribution Dataset — Implementation Plan
+
+## Phased Delivery Status
+
+| Phase | Scope | Status |
+|-------|--------|--------|
+| **1** | Housekeeping, remove dead Streamlit code | ✅ Complete |
+| **2** | Chart readability (Recharts axis labels, tooltips, MAPE) | ✅ Complete |
+| **3** | Frontend architecture (tab components, hooks, API client) | ✅ Complete |
+| **4** | Backend: Prophet cache, YoY API, anomaly `flagged_only`, KPI fixes | ✅ Complete |
+| **5** | Synthetic dataset realism (inflation, reorder cadence, spikes, stockouts) | ✅ Complete |
+| **6** | Auth, export, drill-down | Pending |
+
+---
+
+## Frontend & Visualization (Next.js + Recharts)
+
+The **official UI** is the Next.js 16 + TypeScript app in `frontend/`. Streamlit (`app.py`) and Plotly helpers (`src/viz.py`) have been removed.
+
+| Area | Location | Notes |
+|------|----------|-------|
+| Entry page | `frontend/app/page.tsx` | Filter state, tab shell, API orchestration |
+| Tab components | `frontend/src/components/dashboard/tabs/` | One file per tab (Overview, Regional, Products, Trends, Forecast, Anomalies, Margins) |
+| Charts | Recharts in tab components | `LineChart`, `AreaChart`, `BarChart`, `PieChart`, `Brush`, custom dots |
+| Chart utilities | `frontend/src/lib/chart-utils.ts` | Tick intervals, Indian date/currency formatting |
+| API client | `frontend/src/lib/api.ts` | `NEXT_PUBLIC_API_URL` → FastAPI `:8000` |
+| Types | `frontend/src/lib/types.ts` | KPI, chart, anomaly, forecast payloads |
+
+**Visualization patterns:**
+- Dark theme cards (`bg-slate-900/40`, indigo accents)
+- Lakhs/Crores currency via `formatCurrency`
+- Anomalies tab: dual fetch (full series + flagged-only), 10 rows/page pagination with Previous/Next
+- Trends tab: grouped daily revenue with 30d/90d MAs; mount only active tab for performance
+
+**Do not use:** `streamlit run`, Plotly, or `src/viz.py`.
+
+---
+
+## Data Pipeline
+
+```text
+python3 generate_data.py     # → data/synthetic/sales_data.csv (~100K rows)
+                             # → data/processed/sales_clean.csv (via process_data)
+src/data.py load_data()      # prefers processed, falls back to synthetic
+src/kpis.py                  # pure KPI functions (no UI imports)
+backend/main.py              # FastAPI JSON API
+```
+
+**Phase 5 generator features:** YoY price inflation, customer reorder gaps (7–45 days), month/quarter-end volume spikes, region×channel bias, `stock_constrained` column on ~2% of high-popularity SKUs.
+
+---
 
 ## Background & Context
 
@@ -231,21 +281,23 @@ sku_templates = {
 
 ---
 
-### 5. Visualizations — Category Naming
+### 5. Visualizations — Next.js / Recharts (replaces Streamlit / Plotly)
 
-#### [MODIFY] [viz.py](file:///Users/ahmedmoosani/Desktop/Projects/Internship/sales-dashboard/src/viz.py)
+#### [DONE] `frontend/src/components/dashboard/tabs/*.tsx`
 
-- No code changes needed — categories are dynamic from data
-- The charts will automatically show the new category names
+- Categories and SKUs are dynamic from API data — no hardcoded e-commerce categories
+- Each tab owns its Recharts configuration (axes, tooltips, legends, brush)
+- Chart readability fixes live in tab components and `frontend/src/lib/chart-utils.ts`
 
 ---
 
 ### 6. Dashboard Labels
 
-#### [MODIFY] [app.py](file:///Users/ahmedmoosani/Desktop/Projects/Internship/sales-dashboard/app.py)
+#### [DONE] `frontend/app/page.tsx` + tab components
 
-- Update the caption from "EComSpace Group" → appropriate company name
-- Adjust the `₹` formatting in `kpi_card_data` — values will be smaller (FMCG carton pricing vs electronics)
+- Company branding: **Parasnath Distribution Group**
+- Indian currency formatting (`₹`, Lakhs/Crores) via `frontend/src/lib/format.ts`
+- Filter pills: Region, Category, Channel, Date Range
 
 ---
 
@@ -309,7 +361,8 @@ print(df.channel.value_counts(normalize=True))
 ```
 
 ### Manual Verification
-- Run `streamlit run app.py` and verify all 7 tabs render correctly with new categories
-- Confirm SKU names from the stock reports appear in "Top/Bottom SKUs" view
-- Verify the revenue figures look realistic for an FMCG distributor (total revenue should be in ₹XX Crore range over 3+ years)
-- Check that the Prophet forecast model still trains successfully with new data
+- Start `python3 backend/main.py` and `cd frontend && npm run dev`
+- Open http://localhost:3000 and verify all 7 tabs render with FMCG categories
+- Confirm SKU names from stock reports appear in Product Performance tab
+- Verify Prophet forecast trains at backend startup (`/api/forecast`)
+- Check anomaly tab pagination (10 rows/page) and flagged-day count

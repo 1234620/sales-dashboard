@@ -75,8 +75,9 @@ pip install -r requirements.txt
 
 ### 2. Generate Synthetic FMCG Data
 ```bash
-# Generates ~82K realistic B2B FMCG transactions based on real stock reports
+# Generates ~100K realistic B2B FMCG transactions (2023-01-01 → 2026-04-30)
 python3 generate_data.py
+# Also writes data/processed/sales_clean.csv
 ```
 
 ### 3. Start the FastAPI Backend (required)
@@ -113,16 +114,19 @@ sales-dashboard/
 │       ├── lib/            # API client, types, chart-utils, format helpers
 │       └── hooks/
 ├── config.py               # FMCG categories, holidays, forecast settings
-├── generate_data.py        # Synthetic B2B data generator (~102K transactions)
+├── generate_data.py        # Synthetic B2B data generator (~100K transactions)
 ├── requirements.txt        # Python deps (no Streamlit)
 │
 ├── src/
 │   ├── data.py             # Data loading, validation, filtering
+│   ├── process_data.py     # Copy synthetic → processed/sales_clean.csv
 │   ├── kpis.py             # 16 KPI computation functions (pure, testable)
 │   └── forecast.py         # Prophet: train, predict, MAPE evaluation
 │
 ├── tests/
-│   └── test_kpis.py
+│   ├── test_kpis.py
+│   ├── test_api.py
+│   └── test_generate_data.py
 │
 └── data/
     ├── processed/
@@ -160,13 +164,15 @@ Tests cover: KPI unit tests (`test_kpis.py`) and API integration tests (`test_ap
 ### Completed
 - Project scaffolding and Next.js / FastAPI separation (Streamlit removed)
 - Centralized configuration (`config.py`)
-- Python data ingestion, cleaning, and quality pipeline
+- Python data ingestion, cleaning, and quality pipeline (`src/data.py`, `src/process_data.py`)
+- Phase 5 synthetic data realism: price inflation, reorder cadence, period-end spikes, region×channel bias, stockouts
 - 16 KPI computations and Prophet forecasting
 - Premium dark-theme **Next.js / TypeScript** dashboard with per-tab components (`frontend/src/components/dashboard/tabs/`)
 - Phase 2 chart readability fixes (Recharts: axis labels, confidence bands, SKU tooltips, dynamic MAPE, etc.)
 - Phase 4 backend: Prophet model cache, YoY growth API, festive uplift & margin KPI fixes, anomaly `flagged_only` param
+- Anomalies tab: flagged table pagination (10 rows/page, Previous/Next)
 - Fully integrated control panel and filter pills (Region, Category, Channel, Date Range)
-- Unit tests for KPIs
+- Unit tests for KPIs, API, and generator helpers
 
 ### Next Steps
 - Implement user authentication for client portals

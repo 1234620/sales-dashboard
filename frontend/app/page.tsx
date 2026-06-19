@@ -204,7 +204,10 @@ export default function Dashboard() {
     setForecast((s) => ({ ...s, loading: true, error: null }));
     try {
       const res = await api.fetchForecast(forecastHorizon);
-      if (!signal.aborted) {
+      if (signal.aborted) return;
+      if (res.error) {
+        setForecast({ data: null, loading: false, error: res.error });
+      } else {
         setForecast({ data: res, loading: false, error: null });
       }
     } catch (err) {

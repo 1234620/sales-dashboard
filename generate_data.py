@@ -325,10 +325,10 @@ def generate_transactions(dates: pd.DatetimeIndex) -> pd.DataFrame:
     records = []
     txn_counter = 1
 
-    n_customers = 4_500
-    customer_ids = [f"RET-{i:05d}" for i in range(1, n_customers + 1)]
-    n_repeat = int(n_customers * config.REPEAT_CUSTOMER_RATE)
-    repeat_pool = customer_ids[:n_repeat]
+    n_loyal = 5_000
+    n_transient = 65_000
+    loyal_ids = [f"RET-{i:05d}" for i in range(1, n_loyal + 1)]
+    transient_ids = [f"RET-{i:05d}" for i in range(n_loyal + 1, n_loyal + n_transient + 1)]
 
     cat_names = list(config.CATEGORIES.keys())
     cat_weights = [config.CATEGORIES[c]["weight"] for c in cat_names]
@@ -337,7 +337,7 @@ def generate_transactions(dates: pd.DatetimeIndex) -> pd.DataFrame:
     channel_names = list(config.CHANNELS.keys())
 
     last_order_date: dict[str, pd.Timestamp] = {}
-    customer_idx = n_repeat
+    transient_idx = 0
 
     print(f"Generating FMCG distribution transactions from {config.DATE_START} to {config.DATE_END}...")
 
@@ -362,14 +362,14 @@ def generate_transactions(dates: pd.DatetimeIndex) -> pd.DataFrame:
             discount_pct = round(np.random.beta(1.2, 6) * config.DISCOUNT_RANGE[1], 4)
             net_revenue = round(unit_price * quantity * (1 - discount_pct), 2)
 
-            if np.random.random() < config.REPEAT_CUSTOMER_RATE and repeat_pool:
-                customer_id = pick_repeat_customer(date, repeat_pool, last_order_date)
+            if np.random.random() < config.REPEAT_CUSTOMER_RATE:
+                customer_id = pick_repeat_customer(date, loyal_ids, last_order_date)
                 if customer_id is None:
-                    customer_id = customer_ids[min(customer_idx, len(customer_ids) - 1)]
-                    customer_idx = (customer_idx + 1) % len(customer_ids)
+                    customer_id = transient_ids[transient_idx % len(transient_ids)]
+                    transient_idx += 1
             else:
-                customer_id = customer_ids[min(customer_idx, len(customer_ids) - 1)]
-                customer_idx = (customer_idx + 1) % len(customer_ids)
+                customer_id = transient_ids[transient_idx % len(transient_ids)]
+                transient_idx += 1
 
             last_order_date[customer_id] = date
 

@@ -11,7 +11,7 @@ import {
   formatShortDate,
 } from "@/lib/chart-utils";
 import { formatCurrency, formatDate } from "@/lib/format";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Brush,
   CartesianGrid,
@@ -105,24 +105,16 @@ export function AnomaliesTab({ section }: AnomaliesTabProps) {
     Math.ceil(filteredFlagged.length / FLAGGED_PAGE_SIZE),
   );
 
-  useEffect(() => {
-    setFlaggedPage(1);
-  }, [filteredFlagged.length, typeFilter]);
-
-  useEffect(() => {
-    if (flaggedPage > flaggedPageCount) {
-      setFlaggedPage(flaggedPageCount);
-    }
-  }, [flaggedPage, flaggedPageCount]);
+  const safePage = Math.min(flaggedPage, flaggedPageCount);
 
   const tableRows = useMemo(() => {
-    const start = (flaggedPage - 1) * FLAGGED_PAGE_SIZE;
+    const start = (safePage - 1) * FLAGGED_PAGE_SIZE;
     return filteredFlagged.slice(start, start + FLAGGED_PAGE_SIZE);
-  }, [filteredFlagged, flaggedPage]);
+  }, [filteredFlagged, safePage]);
 
   const tableRangeStart =
-    filteredFlagged.length === 0 ? 0 : (flaggedPage - 1) * FLAGGED_PAGE_SIZE + 1;
-  const tableRangeEnd = Math.min(flaggedPage * FLAGGED_PAGE_SIZE, filteredFlagged.length);
+    filteredFlagged.length === 0 ? 0 : (safePage - 1) * FLAGGED_PAGE_SIZE + 1;
+  const tableRangeEnd = Math.min(safePage * FLAGGED_PAGE_SIZE, filteredFlagged.length);
 
   const chartData = useMemo(() => {
     if (!seriesData?.data) return [];
@@ -263,21 +255,30 @@ export function AnomaliesTab({ section }: AnomaliesTabProps) {
                 <div className="flex items-center gap-1.5 bg-slate-800/80 p-1.5 rounded-xl border border-slate-700">
                   <button
                     type="button"
-                    onClick={() => setTypeFilter("all")}
+                    onClick={() => {
+                      setTypeFilter("all");
+                      setFlaggedPage(1);
+                    }}
                     className={filterButtonClass(typeFilter === "all")}
                   >
                     All
                   </button>
                   <button
                     type="button"
-                    onClick={() => setTypeFilter("spike")}
+                    onClick={() => {
+                      setTypeFilter("spike");
+                      setFlaggedPage(1);
+                    }}
                     className={filterButtonClass(typeFilter === "spike")}
                   >
                     Spikes only
                   </button>
                   <button
                     type="button"
-                    onClick={() => setTypeFilter("drop")}
+                    onClick={() => {
+                      setTypeFilter("drop");
+                      setFlaggedPage(1);
+                    }}
                     className={filterButtonClass(typeFilter === "drop")}
                   >
                     Drops only
@@ -353,18 +354,18 @@ export function AnomaliesTab({ section }: AnomaliesTabProps) {
                     <div className="flex items-center justify-between mt-4 pt-4 border-t border-slate-800">
                       <button
                         type="button"
-                        disabled={flaggedPage <= 1}
+                        disabled={safePage <= 1}
                         onClick={() => setFlaggedPage((p) => p - 1)}
                         className="text-xs px-3 py-1.5 rounded-lg border border-slate-700 text-slate-300 disabled:opacity-40 disabled:cursor-not-allowed hover:border-indigo-500 hover:text-white transition-colors"
                       >
                         Previous
                       </button>
                       <span className="text-xs text-slate-500">
-                        Page {flaggedPage} of {flaggedPageCount}
+                        Page {safePage} of {flaggedPageCount}
                       </span>
                       <button
                         type="button"
-                        disabled={flaggedPage >= flaggedPageCount}
+                        disabled={safePage >= flaggedPageCount}
                         onClick={() => setFlaggedPage((p) => p + 1)}
                         className="text-xs px-3 py-1.5 rounded-lg border border-slate-700 text-slate-300 disabled:opacity-40 disabled:cursor-not-allowed hover:border-indigo-500 hover:text-white transition-colors"
                       >

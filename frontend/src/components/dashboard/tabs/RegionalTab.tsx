@@ -63,12 +63,12 @@ export function RegionalTab({
               <button
                 type="button"
                 onClick={resetDrillDown}
-                className="text-indigo-400 hover:text-indigo-300 font-semibold"
+                className="text-[#5D87FF] hover:text-[#5D87FF] font-semibold"
               >
                 All Regions
               </button>
-              <span className="text-slate-600">›</span>
-              <span className="text-slate-200 font-bold">{selectedRegion}</span>
+              <span className="text-gray-400">›</span>
+              <span className="text-gray-800 font-bold">{selectedRegion}</span>
               {onFilterDashboardToRegion && (
                 <Button
                   type="button"
@@ -84,13 +84,13 @@ export function RegionalTab({
           )}
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <Card className="bg-slate-900/40 border-slate-800">
+            <Card className="bg-white border border-gray-100 shadow-sm">
               <CardHeader className="flex flex-row items-start justify-between gap-3">
                 <div>
-                  <CardTitle className="text-xl font-bold text-white">
+                  <CardTitle className="text-lg font-semibold text-gray-900">
                     Regional Revenue Distribution
                   </CardTitle>
-                  <CardDescription className="text-slate-400">
+                  <CardDescription className="text-gray-500">
                     Click a slice or row to drill down by state
                   </CardDescription>
                 </div>
@@ -164,10 +164,10 @@ export function RegionalTab({
               </CardContent>
             </Card>
 
-            <Card className="bg-slate-900/40 border-slate-800">
+            <Card className="bg-white border border-gray-100 shadow-sm">
               <CardHeader>
-                <CardTitle className="text-xl font-bold text-white">Regional Details</CardTitle>
-                <CardDescription className="text-slate-400">
+                <CardTitle className="text-lg font-semibold text-gray-900">Regional Details</CardTitle>
+                <CardDescription className="text-gray-500">
                   Detailed list of performance statistics by territory
                 </CardDescription>
               </CardHeader>
@@ -180,13 +180,13 @@ export function RegionalTab({
                       onClick={() => void handleRegionSelect(reg.region)}
                       className={`w-full p-4 rounded-xl border flex items-center justify-between text-left transition-all ${
                         selectedRegion === reg.region
-                          ? "bg-indigo-950/40 border-indigo-500/50"
-                          : "bg-slate-900/80 border-slate-850 hover:border-indigo-500/40"
+                          ? "bg-[#5D87FF]/5 border-[#5D87FF]/50"
+                          : "bg-gray-50 border-gray-200 hover:border-[#5D87FF]/40"
                       }`}
                     >
                       <div>
-                        <p className="font-bold text-slate-200">{reg.region}</p>
-                        <div className="w-48 bg-slate-800 rounded-full h-1.5 mt-2">
+                        <p className="font-bold text-gray-800">{reg.region}</p>
+                        <div className="w-48 bg-gray-100 rounded-full h-1.5 mt-2">
                           <div
                             className="bg-indigo-500 h-1.5 rounded-full"
                             style={{ width: `${reg.share_pct}%` }}
@@ -194,10 +194,10 @@ export function RegionalTab({
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="font-extrabold text-indigo-400">
+                        <p className="font-extrabold text-[#5D87FF]">
                           {formatCurrency(reg.revenue)}
                         </p>
-                        <p className="text-xs text-slate-500 mt-1">
+                        <p className="text-xs text-gray-500 mt-1">
                           {formatPercent(reg.share_pct)} share
                         </p>
                       </div>
@@ -209,13 +209,13 @@ export function RegionalTab({
           </div>
 
           {selectedRegion && (
-            <Card className="bg-slate-900/40 border-slate-800">
+            <Card className="bg-white border border-gray-100 shadow-sm">
               <CardHeader className="flex flex-row items-start justify-between gap-3">
                 <div>
-                  <CardTitle className="text-xl font-bold text-white">
+                  <CardTitle className="text-lg font-semibold text-gray-900">
                     {selectedRegion} — State Breakdown
                   </CardTitle>
-                  <CardDescription className="text-slate-400">
+                  <CardDescription className="text-gray-500">
                     Revenue share by state within {selectedRegion}
                   </CardDescription>
                 </div>
@@ -235,19 +235,19 @@ export function RegionalTab({
               </CardHeader>
               <CardContent>
                 {statesLoading && (
-                  <p className="text-sm text-slate-400 py-4">Loading state breakdown…</p>
+                  <p className="text-sm text-gray-500 py-4">Loading state breakdown…</p>
                 )}
                 {statesError && (
                   <p className="text-sm text-red-400 py-4">{statesError}</p>
                 )}
                 {!statesLoading && !statesError && stateData?.length === 0 && (
-                  <p className="text-sm text-slate-400 py-4">No state data for this region.</p>
+                  <p className="text-sm text-gray-500 py-4">No state data for this region.</p>
                 )}
                 {stateData && stateData.length > 0 && (
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm text-left">
                       <thead>
-                        <tr className="border-b border-slate-800 text-slate-400">
+                        <tr className="border-b border-gray-200 text-gray-500">
                           <th className="py-3 px-4">State</th>
                           <th className="py-3 px-4 text-right">Revenue</th>
                           <th className="py-3 px-4 text-right">Share</th>
@@ -257,15 +257,15 @@ export function RegionalTab({
                         {stateData.map((row) => (
                           <tr
                             key={row.state}
-                            className="border-b border-slate-900 hover:bg-slate-900/40"
+                            className="border-b border-gray-100 hover:bg-gray-50"
                           >
-                            <td className="py-3 px-4 font-semibold text-slate-200">
+                            <td className="py-3 px-4 font-semibold text-gray-800">
                               {row.state}
                             </td>
-                            <td className="py-3 px-4 text-right text-indigo-300">
+                            <td className="py-3 px-4 text-right text-[#5D87FF]">
                               {formatCurrency(row.revenue)}
                             </td>
-                            <td className="py-3 px-4 text-right text-slate-400">
+                            <td className="py-3 px-4 text-right text-gray-500">
                               {formatPercent(row.share_pct)}
                             </td>
                           </tr>

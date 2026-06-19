@@ -54,9 +54,9 @@ function SkuTooltip({
       style={CHART_TOOLTIP_STYLE}
       className="px-3 py-2 text-sm shadow-lg border"
     >
-      <p className="font-semibold text-white mb-1 max-w-xs">{row.product_sku}</p>
-      <p className="text-slate-300">Revenue: {formatCurrency(row.revenue)}</p>
-      <p className="text-slate-300">Quantity: {formatNumber(row.quantity)} cartons</p>
+      <p className="font-semibold text-gray-900 mb-1 max-w-xs">{row.product_sku}</p>
+      <p className="text-gray-600">Revenue: {formatCurrency(row.revenue)}</p>
+      <p className="text-gray-600">Quantity: {formatNumber(row.quantity)} cartons</p>
     </div>
   );
 }
@@ -94,13 +94,13 @@ export function ProductsTab({ section }: ProductsTabProps) {
       <div className="space-y-8">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {categoryData && (
-            <Card className="bg-slate-900/40 border-slate-800">
+            <Card className="bg-white border border-gray-100 shadow-sm">
               <CardHeader className="flex flex-row items-start justify-between gap-3">
                 <div>
-                  <CardTitle className="text-xl font-bold text-white">
+                  <CardTitle className="text-lg font-semibold text-gray-900">
                     Category Margin Contribution
                   </CardTitle>
-                  <CardDescription className="text-slate-400">
+                  <CardDescription className="text-gray-500">
                     Net revenue by category with margin % annotated on each bar
                   </CardDescription>
                 </div>
@@ -123,17 +123,17 @@ export function ProductsTab({ section }: ProductsTabProps) {
                     layout="vertical"
                     margin={{ left: 8, right: 48, top: 4, bottom: 4 }}
                   >
-                    <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" horizontal={false} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" horizontal={false} />
                     <XAxis
                       type="number"
-                      stroke="#64748b"
+                      stroke="#9ca3af"
                       tick={CHART_AXIS_TICK}
                       tickFormatter={currencyTick}
                     />
                     <YAxis
                       dataKey="product_category"
                       type="category"
-                      stroke="#64748b"
+                      stroke="#9ca3af"
                       tick={{ ...CHART_AXIS_TICK, fontSize: 10 }}
                       width={110}
                     />
@@ -162,13 +162,13 @@ export function ProductsTab({ section }: ProductsTabProps) {
           )}
 
           {skuData && (
-            <Card className="bg-slate-900/40 border-slate-800">
+            <Card className="bg-white border border-gray-100 shadow-sm">
               <CardHeader className="flex flex-row items-start justify-between gap-3">
                 <div>
-                  <CardTitle className="text-xl font-bold text-white">
-                    🏆 Top 10 SKUs by Revenue
+                  <CardTitle className="text-lg font-semibold text-gray-900">
+                    Top 10 SKUs by Revenue
                   </CardTitle>
-                  <CardDescription className="text-slate-400">
+                  <CardDescription className="text-gray-500">
                     Top-selling products and carton quantities
                   </CardDescription>
                 </div>
@@ -191,17 +191,17 @@ export function ProductsTab({ section }: ProductsTabProps) {
                     layout="vertical"
                     margin={{ left: 8, right: 16, top: 4, bottom: 4 }}
                   >
-                    <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" horizontal={false} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" horizontal={false} />
                     <XAxis
                       type="number"
-                      stroke="#64748b"
+                      stroke="#9ca3af"
                       tick={CHART_AXIS_TICK}
                       tickFormatter={currencyTick}
                     />
                     <YAxis
                       dataKey="skuLabel"
                       type="category"
-                      stroke="#64748b"
+                      stroke="#9ca3af"
                       tick={{ ...CHART_AXIS_TICK, fontSize: 10 }}
                       width={200}
                     />
@@ -215,12 +215,12 @@ export function ProductsTab({ section }: ProductsTabProps) {
         </div>
 
         {skuData && (
-          <Card className="bg-slate-900/40 border-slate-800">
+          <Card className="bg-white border border-gray-100 shadow-sm">
             <CardHeader>
-              <CardTitle className="text-xl font-bold text-white">
-                ⬇️ Bottom 10 SKUs by Revenue
+              <CardTitle className="text-lg font-semibold text-gray-900">
+                Bottom 10 SKUs by Revenue
               </CardTitle>
-              <CardDescription className="text-slate-400">
+              <CardDescription className="text-gray-500">
                 Lowest-revenue products — axis zoomed to this range so differences are visible
               </CardDescription>
             </CardHeader>
@@ -231,10 +231,10 @@ export function ProductsTab({ section }: ProductsTabProps) {
                   layout="vertical"
                   margin={{ left: 8, right: 16, top: 4, bottom: 4 }}
                 >
-                  <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" horizontal={false} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" horizontal={false} />
                   <XAxis
                     type="number"
-                    stroke="#64748b"
+                    stroke="#9ca3af"
                     tick={CHART_AXIS_TICK}
                     tickFormatter={currencyTick}
                     domain={[
@@ -245,7 +245,7 @@ export function ProductsTab({ section }: ProductsTabProps) {
                   <YAxis
                     dataKey="skuLabel"
                     type="category"
-                    stroke="#64748b"
+                    stroke="#9ca3af"
                     tick={{ ...CHART_AXIS_TICK, fontSize: 10 }}
                     width={200}
                   />
@@ -258,12 +258,12 @@ export function ProductsTab({ section }: ProductsTabProps) {
         )}
 
         {heatmapData && heatmapData.regions.length > 0 && (
-          <Card className="bg-slate-900/40 border-slate-800">
+          <Card className="bg-white border border-gray-100 shadow-sm">
             <CardHeader>
-              <CardTitle className="text-xl font-bold text-white">
+              <CardTitle className="text-lg font-semibold text-gray-900">
                 Region × Category Revenue Heatmap
               </CardTitle>
-              <CardDescription className="text-slate-400">
+              <CardDescription className="text-gray-500">
                 CSS grid heatmap (no extra chart dependency). Darker indigo = higher revenue.
               </CardDescription>
             </CardHeader>

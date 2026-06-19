@@ -1,6 +1,7 @@
 "use client";
 
 import { GROUPED_LINE_STYLES } from "@/components/dashboard/constants";
+import { dashboardTheme } from "@/components/dashboard/theme";
 import { ExportCsvButton } from "@/components/dashboard/ExportCsvButton";
 import { TabSection } from "@/components/dashboard/MetricCard";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -68,57 +69,51 @@ export function TrendsTab({
 
   return (
     <TabSection loading={loading} error={error} hasData={!!dailyRevenue}>
-      <Card className="bg-slate-900/40 border-slate-800">
+      <Card className="bg-white border border-gray-100 shadow-sm">
         <CardHeader className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
-            <CardTitle className="text-xl font-bold text-white">
+            <CardTitle className="text-lg font-semibold text-gray-900">
               Revenue Trend with Moving Averages
             </CardTitle>
-            <CardDescription className="text-slate-400">
+            <CardDescription className="text-gray-500">
               Daily revenue curve smoothed by 30-day and 90-day rolling averages
             </CardDescription>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {!trendGroupBy && (
               <button
+                type="button"
                 onClick={() => setShowDaily((v) => !v)}
-                className={`text-xs px-3 py-1.5 rounded-lg border transition-all ${
-                  showDaily
-                    ? "bg-slate-700 border-slate-600 text-white font-bold"
-                    : "border-slate-700 text-slate-400 hover:text-white"
-                }`}
+                className={showDaily ? dashboardTheme.chipActive : dashboardTheme.chipIdle}
               >
                 {showDaily ? "Hide daily" : "Show daily"}
               </button>
             )}
-            <div className="flex items-center gap-2 bg-slate-800/80 p-1.5 rounded-xl border border-slate-700">
+            <div className="flex items-center gap-2 bg-gray-100 p-1.5 rounded-xl border border-gray-200">
               <button
+                type="button"
                 onClick={() => onTrendGroupByChange(null)}
-                className={`text-xs px-3 py-1.5 rounded-lg transition-all ${
-                  !trendGroupBy
-                    ? "bg-indigo-600 text-white font-bold"
-                    : "text-slate-400 hover:text-white"
-                }`}
+                className={!trendGroupBy ? dashboardTheme.chipActive : dashboardTheme.chipIdle}
               >
                 No Grouping
               </button>
               <button
+                type="button"
                 onClick={() => onTrendGroupByChange("region")}
-                className={`text-xs px-3 py-1.5 rounded-lg transition-all ${
-                  trendGroupBy === "region"
-                    ? "bg-indigo-600 text-white font-bold"
-                    : "text-slate-400 hover:text-white"
-                }`}
+                className={
+                  trendGroupBy === "region" ? dashboardTheme.chipActive : dashboardTheme.chipIdle
+                }
               >
                 By Region
               </button>
               <button
+                type="button"
                 onClick={() => onTrendGroupByChange("product_category")}
-                className={`text-xs px-3 py-1.5 rounded-lg transition-all ${
+                className={
                   trendGroupBy === "product_category"
-                    ? "bg-indigo-600 text-white font-bold"
-                    : "text-slate-400 hover:text-white"
-                }`}
+                    ? dashboardTheme.chipActive
+                    : dashboardTheme.chipIdle
+                }
               >
                 By Category
               </button>
@@ -141,10 +136,10 @@ export function TrendsTab({
               data={processedTrendData}
               margin={{ top: 8, right: 16, left: 8, bottom: 8 }}
             >
-              <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
               <XAxis
                 dataKey="date"
-                stroke="#64748b"
+                stroke="#9ca3af"
                 tick={CHART_AXIS_TICK}
                 tickFormatter={formatShortDate}
                 interval={computeTickInterval(pointCount, 12)}
@@ -153,7 +148,7 @@ export function TrendsTab({
                 height={56}
               />
               <YAxis
-                stroke="#64748b"
+                stroke="#9ca3af"
                 tick={CHART_AXIS_TICK}
                 tickFormatter={currencyTick}
                 width={72}

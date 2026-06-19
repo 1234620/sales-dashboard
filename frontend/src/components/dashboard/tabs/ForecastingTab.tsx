@@ -137,13 +137,13 @@ export function ForecastingTab({
 
   return (
     <TabSection loading={loading} error={error} hasData={!!forecastData}>
-      <Card className="bg-slate-900/40 border-slate-800">
+      <Card className="bg-white border border-gray-100 shadow-sm">
         <CardHeader className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
-            <CardTitle className="text-xl font-bold text-white">
+            <CardTitle className="text-lg font-semibold text-gray-900">
               Machine Learning Revenue Forecast
             </CardTitle>
-            <CardDescription className="text-slate-400">
+            <CardDescription className="text-gray-500">
               Prophet model forecasting monthly revenue with Indian holiday modifiers
             </CardDescription>
           </div>
@@ -161,9 +161,9 @@ export function ForecastingTab({
                 { key: "y", header: "y" },
               ]}
             />
-            <div className="flex items-center gap-4 bg-slate-800/40 p-4 rounded-xl border border-slate-700/60">
+            <div className="flex items-center gap-4 bg-gray-100 p-4 rounded-xl border border-slate-700/60">
               <div className="space-y-1">
-                <p className="text-xs font-bold text-slate-400">
+                <p className="text-xs font-bold text-gray-500">
                   Forecast Horizon: {forecastHorizon} Months
                 </p>
                 <input
@@ -183,7 +183,7 @@ export function ForecastingTab({
             <div className="space-y-6">
               <ResponsiveContainer width="100%" height={380}>
                 <ComposedChart data={chartData} margin={{ top: 8, right: 16, left: 8, bottom: 8 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                   {forecastStart && (
                     <ReferenceArea
                       x1={forecastStart}
@@ -195,7 +195,7 @@ export function ForecastingTab({
                   )}
                   <XAxis
                     dataKey="ds"
-                    stroke="#64748b"
+                    stroke="#9ca3af"
                     tick={CHART_AXIS_TICK}
                     tickFormatter={(val) => formatYearMonth(String(val).substring(0, 7))}
                     interval={computeTickInterval(chartData.length, 10)}
@@ -204,7 +204,7 @@ export function ForecastingTab({
                     height={56}
                   />
                   <YAxis
-                    stroke="#64748b"
+                    stroke="#9ca3af"
                     tick={CHART_AXIS_TICK}
                     tickFormatter={currencyTick}
                     width={72}
@@ -286,16 +286,16 @@ export function ForecastingTab({
                 </ComposedChart>
               </ResponsiveContainer>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 rounded-xl bg-slate-900/60 border border-slate-800">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 rounded-xl bg-gray-50 border border-gray-200">
                 <div>
-                  <h4 className="text-sm font-bold text-white">Forecast Model Performance</h4>
-                  <p className="text-xs text-slate-400 mt-1">
+                  <h4 className="text-sm font-bold text-gray-900">Forecast Model Performance</h4>
+                  <p className="text-xs text-gray-500 mt-1">
                     MAPE computed from out-of-sample holdout validation data
                   </p>
                 </div>
                 <div className="flex items-center gap-6 justify-end">
                   <div className="text-right">
-                    <p className="text-xs text-slate-500">Model accuracy (MAPE)</p>
+                    <p className="text-xs text-gray-500">Model accuracy (MAPE)</p>
                     <p
                       className={`text-2xl font-black ${
                         mapePasses ? "text-emerald-400" : "text-rose-400"
@@ -321,7 +321,7 @@ export function ForecastingTab({
               </div>
             </div>
           ) : (
-            <p className="text-center text-slate-400 py-12">No forecast loaded</p>
+            <p className="text-center text-gray-500 py-12">No forecast loaded</p>
           )}
         </CardContent>
       </Card>

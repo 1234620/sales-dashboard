@@ -3,16 +3,17 @@
  */
 
 export const CHART_TOOLTIP_STYLE = {
-  backgroundColor: "#0f172a",
-  borderColor: "#334155",
-  borderRadius: "12px",
-  color: "#fff",
+  backgroundColor: "#ffffff",
+  borderColor: "#e5e7eb",
+  borderRadius: "10px",
+  color: "#1f2937",
+  boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
 } as const;
 
-export const CHART_AXIS_TICK = { fill: "#64748b", fontSize: 11 } as const;
+export const CHART_AXIS_TICK = { fill: "#6b7280", fontSize: 11 } as const;
 
 export const CHART_LEGEND_STYLE = {
-  color: "#e2e8f0",
+  color: "#374151",
   fontSize: 12,
 } as const;
 

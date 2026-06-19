@@ -85,8 +85,8 @@ function AnomalyDot({ cx, cy, index, payload }: AnomalyDotProps) {
 function filterButtonClass(active: boolean): string {
   return `text-xs px-3 py-1.5 rounded-lg transition-all ${
     active
-      ? "bg-indigo-600 text-white font-bold"
-      : "text-slate-400 hover:text-white"
+      ? "bg-[#5D87FF] text-white font-semibold"
+      : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
   }`;
 }
 
@@ -167,30 +167,30 @@ export function AnomaliesTab({ section }: AnomaliesTabProps) {
               value={seriesData.total_days}
               change="Daily trend size"
               changeType="neutral"
-              color="from-indigo-500 to-indigo-600"
+              accent="blue"
             />
             <MetricCard
               title="Anomalous Days"
               value={seriesData.anomalies_count}
               change={`${((seriesData.anomalies_count / seriesData.total_days) * 100).toFixed(1)}% anomaly rate`}
               changeType="negative"
-              color="from-rose-500 to-rose-600"
+              accent="rose"
             />
             <MetricCard
               title="Detection Rules"
               value={`|z| > ${zscoreThreshold.toFixed(1)}`}
               change={`Min Δ ${formatCurrency(minRevenueDelta)}${excludeFestive ? " · festive excluded" : ""}`}
               changeType="neutral"
-              color="from-amber-500 to-amber-600"
+              accent="orange"
             />
           </div>
 
-          <Card className="bg-slate-900/40 border-slate-800">
+          <Card className="bg-white border border-gray-100 shadow-sm">
             <CardHeader>
-              <CardTitle className="text-xl font-bold text-white">
+              <CardTitle className="text-lg font-semibold text-gray-900">
                 Daily Revenue Anomaly Timeline
               </CardTitle>
-              <CardDescription className="text-slate-400">
+              <CardDescription className="text-gray-500">
                 {rollingWindow}-day rolling z-score. Red dots = flagged days (festive windows
                 excluded when configured).
               </CardDescription>
@@ -201,10 +201,10 @@ export function AnomaliesTab({ section }: AnomaliesTabProps) {
                   data={chartData}
                   margin={{ top: 8, right: 16, left: 8, bottom: 8 }}
                 >
-                  <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                   <XAxis
                     dataKey="date"
-                    stroke="#64748b"
+                    stroke="#9ca3af"
                     tick={CHART_AXIS_TICK}
                     tickFormatter={formatShortDate}
                     interval={computeTickInterval(chartData.length, 10)}
@@ -213,7 +213,7 @@ export function AnomaliesTab({ section }: AnomaliesTabProps) {
                     height={56}
                   />
                   <YAxis
-                    stroke="#64748b"
+                    stroke="#9ca3af"
                     tick={CHART_AXIS_TICK}
                     tickFormatter={currencyTick}
                     width={72}
@@ -262,30 +262,30 @@ export function AnomaliesTab({ section }: AnomaliesTabProps) {
             </CardContent>
           </Card>
 
-          <Card className="bg-slate-900/40 border-slate-800">
+          <Card className="bg-white border border-gray-100 shadow-sm">
             <CardHeader className="flex flex-col gap-4">
               <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
                 <div>
-                  <CardTitle className="text-xl font-bold text-white">
+                  <CardTitle className="text-lg font-semibold text-gray-900">
                     Flagged Anomalous Days
                   </CardTitle>
-                  <CardDescription className="text-slate-400">
+                  <CardDescription className="text-gray-500">
                     Sorted by severity (highest |z-score| first), 10 rows per page.
                   </CardDescription>
                 </div>
                 {filteredFlagged.length > 0 && (
-                  <p className="text-xs text-slate-500 shrink-0">
+                  <p className="text-xs text-gray-500 shrink-0">
                     Showing {tableRangeStart}–{tableRangeEnd} of {filteredFlagged.length}
                   </p>
                 )}
               </div>
               <div className="flex flex-wrap items-center gap-2">
-                <label className="flex items-center gap-2 text-xs text-slate-400 cursor-pointer">
+                <label className="flex items-center gap-2 text-xs text-gray-500 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={includeFullSeries}
                     onChange={(e) => setIncludeFullSeries(e.target.checked)}
-                    className="rounded border-slate-600 bg-slate-800 text-indigo-500"
+                    className="rounded border-slate-600 bg-gray-100 text-indigo-500"
                   />
                   Include full series in CSV
                 </label>
@@ -302,7 +302,7 @@ export function AnomaliesTab({ section }: AnomaliesTabProps) {
                     { key: "is_anomaly", header: "is_anomaly" },
                   ]}
                 />
-                <div className="flex items-center gap-1.5 bg-slate-800/80 p-1.5 rounded-xl border border-slate-700">
+                <div className="flex items-center gap-1.5 bg-gray-100 p-1.5 rounded-xl border border-gray-200">
                   <button
                     type="button"
                     onClick={() => {
@@ -338,15 +338,15 @@ export function AnomaliesTab({ section }: AnomaliesTabProps) {
             </CardHeader>
             <CardContent>
               {filteredFlagged.length === 0 ? (
-                <p className="text-sm text-slate-400 py-6 text-center">
+                <p className="text-sm text-gray-500 py-6 text-center">
                   No flagged days match the current filters and detection rules.
                 </p>
               ) : (
                 <>
                   <div className="overflow-x-auto max-h-[420px] overflow-y-auto">
                     <table className="w-full text-sm text-left">
-                      <thead className="sticky top-0 bg-slate-900/95 z-10">
-                        <tr className="border-b border-slate-850 text-slate-400">
+                      <thead className="sticky top-0 bg-white z-10">
+                        <tr className="border-b border-gray-200 text-gray-500">
                           <th className="py-3 px-4">Date</th>
                           <th className="py-3 px-4">Type</th>
                           <th className="py-3 px-4 text-right">Actual Revenue</th>
@@ -364,9 +364,9 @@ export function AnomaliesTab({ section }: AnomaliesTabProps) {
                           return (
                             <tr
                               key={row.date}
-                              className="border-b border-slate-900 hover:bg-slate-900/40"
+                              className="border-b border-gray-100 hover:bg-gray-50"
                             >
-                              <td className="py-3.5 px-4 font-bold text-slate-200">
+                              <td className="py-3.5 px-4 font-bold text-gray-800">
                                 {row.date.split("T")[0]}
                               </td>
                               <td className="py-3.5 px-4">
@@ -380,13 +380,13 @@ export function AnomaliesTab({ section }: AnomaliesTabProps) {
                                   {type === "spike" ? "Spike" : "Drop"}
                                 </span>
                               </td>
-                              <td className="py-3.5 px-4 text-right font-semibold text-white">
+                              <td className="py-3.5 px-4 text-right font-semibold text-gray-900">
                                 {formatCurrency(row.daily_revenue)}
                               </td>
-                              <td className="py-3.5 px-4 text-right text-slate-400">
+                              <td className="py-3.5 px-4 text-right text-gray-500">
                                 {formatCurrency(row.rolling_mean)}
                               </td>
-                              <td className="py-3.5 px-4 text-right text-slate-300">
+                              <td className="py-3.5 px-4 text-right text-gray-600">
                                 {formatCurrency(deviation)}
                               </td>
                               <td className="py-3.5 px-4 text-right">
@@ -401,23 +401,23 @@ export function AnomaliesTab({ section }: AnomaliesTabProps) {
                     </table>
                   </div>
                   {filteredFlagged.length > 0 && (
-                    <div className="flex items-center justify-between mt-4 pt-4 border-t border-slate-800">
+                    <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-200">
                       <button
                         type="button"
                         disabled={safePage <= 1}
                         onClick={() => setFlaggedPage((p) => p - 1)}
-                        className="text-xs px-3 py-1.5 rounded-lg border border-slate-700 text-slate-300 disabled:opacity-40 disabled:cursor-not-allowed hover:border-indigo-500 hover:text-white transition-colors"
+                        className="text-xs px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 disabled:opacity-40 disabled:cursor-not-allowed hover:border-[#5D87FF] hover:text-[#5D87FF] transition-colors"
                       >
                         Previous
                       </button>
-                      <span className="text-xs text-slate-500">
+                      <span className="text-xs text-gray-500">
                         Page {safePage} of {flaggedPageCount}
                       </span>
                       <button
                         type="button"
                         disabled={safePage >= flaggedPageCount}
                         onClick={() => setFlaggedPage((p) => p + 1)}
-                        className="text-xs px-3 py-1.5 rounded-lg border border-slate-700 text-slate-300 disabled:opacity-40 disabled:cursor-not-allowed hover:border-indigo-500 hover:text-white transition-colors"
+                        className="text-xs px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 disabled:opacity-40 disabled:cursor-not-allowed hover:border-[#5D87FF] hover:text-[#5D87FF] transition-colors"
                       >
                         Next
                       </button>

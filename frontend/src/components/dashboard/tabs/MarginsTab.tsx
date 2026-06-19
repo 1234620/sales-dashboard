@@ -39,12 +39,12 @@ function ChannelShareBar({ data }: { data: ChannelMixData[] }) {
       {sorted.map((ch, index) => (
         <div key={ch.channel}>
           <div className="flex items-center justify-between text-sm mb-1.5">
-            <span className="font-semibold text-slate-200 capitalize">{ch.channel}</span>
-            <span className="text-slate-400">
+            <span className="font-semibold text-gray-800 capitalize">{ch.channel}</span>
+            <span className="text-gray-500">
               {formatPercent(ch.share_pct)} · {formatCurrency(ch.revenue)}
             </span>
           </div>
-          <div className="h-4 bg-slate-800 rounded-full overflow-hidden">
+          <div className="h-4 bg-gray-100 rounded-full overflow-hidden">
             <div
               className="h-full rounded-full transition-all"
               style={{
@@ -68,7 +68,7 @@ function ChannelShareBar({ data }: { data: ChannelMixData[] }) {
           />
         ))}
       </div>
-      <div className="flex justify-between text-xs text-slate-500">
+      <div className="flex justify-between text-xs text-gray-500">
         {sorted.map((ch) => (
           <span key={`lbl-${ch.channel}`} className="capitalize">
             {ch.channel} {formatPercent(ch.share_pct, 0)}
@@ -125,12 +125,12 @@ export function MarginsTab({ section }: MarginsTabProps) {
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {returnsData && (
-            <Card className="bg-slate-900/40 border-slate-800">
+            <Card className="bg-white border border-gray-100 shadow-sm">
               <CardHeader>
-                <CardTitle className="text-xl font-bold text-white">
+                <CardTitle className="text-lg font-semibold text-gray-900">
                   Return Rates by Category
                 </CardTitle>
-                <CardDescription className="text-slate-400">
+                <CardDescription className="text-gray-500">
                   Percentage of unit quantities returned by retailers
                 </CardDescription>
               </CardHeader>
@@ -141,10 +141,10 @@ export function MarginsTab({ section }: MarginsTabProps) {
                     layout="vertical"
                     margin={{ left: 8, right: 40, top: 4, bottom: 4 }}
                   >
-                    <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" horizontal={false} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" horizontal={false} />
                     <XAxis
                       type="number"
-                      stroke="#64748b"
+                      stroke="#9ca3af"
                       tick={CHART_AXIS_TICK}
                       tickFormatter={percentTick}
                       domain={[0, Math.max(maxReturnRate * 1.25, 0.005)]}
@@ -152,7 +152,7 @@ export function MarginsTab({ section }: MarginsTabProps) {
                     <YAxis
                       dataKey="product_category"
                       type="category"
-                      stroke="#64748b"
+                      stroke="#9ca3af"
                       tick={{ ...CHART_AXIS_TICK, fontSize: 10 }}
                       width={110}
                     />
@@ -181,12 +181,12 @@ export function MarginsTab({ section }: MarginsTabProps) {
           )}
 
           {channelData && (
-            <Card className="bg-slate-900/40 border-slate-800">
+            <Card className="bg-white border border-gray-100 shadow-sm">
               <CardHeader>
-                <CardTitle className="text-xl font-bold text-white">
+                <CardTitle className="text-lg font-semibold text-gray-900">
                   Channel Revenue Share
                 </CardTitle>
-                <CardDescription className="text-slate-400">
+                <CardDescription className="text-gray-500">
                   Offline distributor logistics vs online supply chains
                 </CardDescription>
               </CardHeader>
@@ -198,12 +198,12 @@ export function MarginsTab({ section }: MarginsTabProps) {
         </div>
 
         {festiveUplift && (
-          <Card className="bg-slate-900/40 border-slate-800">
+          <Card className="bg-white border border-gray-100 shadow-sm">
             <CardHeader>
-              <CardTitle className="text-xl font-bold text-white">
+              <CardTitle className="text-lg font-semibold text-gray-900">
                 Festive Season Revenue Uplift
               </CardTitle>
-              <CardDescription className="text-slate-400">
+              <CardDescription className="text-gray-500">
                 Sales velocity multiplier during key festive and Eid calendar dates
               </CardDescription>
             </CardHeader>
@@ -213,10 +213,10 @@ export function MarginsTab({ section }: MarginsTabProps) {
                   data={festiveUplift}
                   margin={{ top: 8, right: 16, left: 8, bottom: 48 }}
                 >
-                  <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                   <XAxis
                     dataKey="festival"
-                    stroke="#64748b"
+                    stroke="#9ca3af"
                     tick={{ ...CHART_AXIS_TICK, fontSize: 10 }}
                     interval={0}
                     angle={-35}
@@ -224,7 +224,7 @@ export function MarginsTab({ section }: MarginsTabProps) {
                     height={64}
                   />
                   <YAxis
-                    stroke="#64748b"
+                    stroke="#9ca3af"
                     tick={CHART_AXIS_TICK}
                     tickFormatter={(val: number) => `${val.toFixed(0)}%`}
                     label={{
@@ -235,7 +235,7 @@ export function MarginsTab({ section }: MarginsTabProps) {
                       style: { textAnchor: "middle", fontSize: 11 },
                     }}
                   />
-                  <ReferenceLine y={0} stroke="#64748b" strokeDasharray="3 3" />
+                  <ReferenceLine y={0} stroke="#9ca3af" strokeDasharray="3 3" />
                   <Tooltip
                     contentStyle={CHART_TOOLTIP_STYLE}
                     formatter={(val: number) => [`${val.toFixed(1)}%`, "Revenue Uplift"]}

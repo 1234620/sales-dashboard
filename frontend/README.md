@@ -31,7 +31,7 @@ Open **http://localhost:3000** in your browser. Do not use `streamlit run` or po
 | `src/lib/api.ts` | HTTP client → FastAPI (`NEXT_PUBLIC_API_URL`, default `http://localhost:8000`) |
 | `src/lib/chart-utils.ts` | Shared axis formatting, tick intervals, MAPE helper |
 | `src/lib/export-csv.ts` | Client-side CSV download (`downloadCsv`, `downloadRowsCsv`) |
-| `src/lib/export-pdf.ts` | Client-side PDF export via **html2canvas** `1.4.1` + **jspdf** `2.5.2` |
+| `src/lib/export-pdf.ts` | Client-side PDF export via **html2canvas-pro** `1.5.8` + **jspdf** `2.5.2` |
 | `src/lib/types.ts` | TypeScript types matching API responses |
 
 ## Exports

@@ -1,3 +1,7 @@
+"use client";
+
+import { dashboardTheme } from "@/components/dashboard/theme";
+import { motion } from "framer-motion";
 import type { ReactNode } from "react";
 
 interface MetricCardProps {
@@ -6,9 +10,20 @@ interface MetricCardProps {
   change?: string | null;
   compareDelta?: string | null;
   changeType?: "positive" | "negative" | "neutral";
-  color: string;
+  accent?: "blue" | "teal" | "orange" | "rose" | "purple" | "cyan" | "pink" | "sky";
   delay?: number;
 }
+
+const ACCENT_BAR: Record<NonNullable<MetricCardProps["accent"]>, string> = {
+  blue: "bg-[#5D87FF]",
+  teal: "bg-[#13DEB9]",
+  orange: "bg-[#FFAE1F]",
+  rose: "bg-[#FA896B]",
+  purple: "bg-[#763EBD]",
+  cyan: "bg-[#49BEFF]",
+  pink: "bg-[#FA896B]",
+  sky: "bg-[#0074BA]",
+};
 
 export function MetricCard({
   title,
@@ -16,56 +31,43 @@ export function MetricCard({
   change,
   compareDelta,
   changeType = "neutral",
-  color,
+  accent = "blue",
   delay = 0,
 }: MetricCardProps) {
   const isPositive = changeType === "positive";
   const isNeutral = changeType === "neutral";
 
   return (
-    <div
-      className="group relative overflow-hidden rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-1"
-      style={{
-        animation: `slideUp 0.6s ease-out ${delay}ms both`,
-      }}
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.35, delay: delay / 1000, ease: "easeOut" }}
+      className={`relative overflow-hidden rounded-xl border border-gray-100 bg-white shadow-[0_2px_12px_rgba(0,0,0,0.04)] hover:shadow-[0_8px_24px_rgba(93,135,255,0.12)] transition-shadow duration-300`}
     >
-      <div
-        className={`absolute inset-0 bg-gradient-to-br ${color} opacity-5 group-hover:opacity-15 transition-opacity duration-500`}
-      />
-      <div className="relative p-6 bg-slate-900/60 backdrop-blur-md border border-slate-800/80 rounded-2xl">
-        <p className="text-xs font-semibold tracking-wider text-slate-400 uppercase mb-2">
+      <div className={`absolute left-0 top-0 h-full w-1 ${ACCENT_BAR[accent]}`} />
+      <div className="p-5 pl-6">
+        <p className="text-xs font-semibold tracking-wide text-gray-500 uppercase mb-2">
           {title}
         </p>
-        <div className="flex items-end justify-between">
-          <div>
-            <p className="text-3xl font-extrabold text-white tracking-tight drop-shadow-[0_2px_8px_rgba(255,255,255,0.1)]">
-              {value}
-            </p>
-            {change && (
-              <p
-                className={`text-xs mt-2 flex items-center gap-1 font-semibold ${
-                  isNeutral
-                    ? "text-slate-400"
-                    : isPositive
-                      ? "text-emerald-400"
-                      : "text-red-400"
-                }`}
-              >
-                {!isNeutral && (isPositive ? "↑" : "↓")} {change}
-              </p>
-            )}
-            {compareDelta && (
-              <p className="text-xs mt-1 font-semibold text-indigo-300">{compareDelta}</p>
-            )}
-          </div>
-          <div
-            className={`w-12 h-12 rounded-xl bg-gradient-to-br ${color} opacity-10 group-hover:opacity-20 transition-opacity duration-300 flex items-center justify-center`}
+        <p className="text-2xl font-bold text-gray-900 tracking-tight">{value}</p>
+        {change && (
+          <p
+            className={`text-xs mt-2 flex items-center gap-1 font-medium ${
+              isNeutral
+                ? "text-gray-500"
+                : isPositive
+                  ? "text-emerald-600"
+                  : "text-rose-600"
+            }`}
           >
-            <div className={`w-6 h-6 rounded-md bg-gradient-to-br ${color} opacity-80`} />
-          </div>
-        </div>
+            {!isNeutral && (isPositive ? "↑" : "↓")} {change}
+          </p>
+        )}
+        {compareDelta && (
+          <p className="text-xs mt-1 font-semibold text-[#5D87FF]">{compareDelta}</p>
+        )}
       </div>
-    </div>
+    </motion.div>
   );
 }
 
@@ -85,11 +87,7 @@ export function TabSection({
   skeleton,
 }: TabSectionProps) {
   if (error) {
-    return (
-      <div className="p-4 bg-red-950/40 border border-red-800 text-red-300 rounded-2xl text-sm">
-        Failed to load this section: {error}
-      </div>
-    );
+    return <div className={dashboardTheme.error}>Failed to load this section: {error}</div>;
   }
 
   if (loading && !hasData) {
@@ -99,10 +97,8 @@ export function TabSection({
   return (
     <div className="relative">
       {loading && hasData && (
-        <div className="absolute inset-0 z-10 bg-slate-950/40 backdrop-blur-[1px] rounded-2xl flex items-start justify-end p-3">
-          <span className="text-xs font-semibold text-indigo-300 bg-slate-900/90 border border-indigo-500/30 px-2.5 py-1 rounded-lg">
-            Refreshing…
-          </span>
+        <div className={dashboardTheme.refreshOverlay}>
+          <span className={dashboardTheme.refreshBadge}>Refreshing…</span>
         </div>
       )}
       {children}
@@ -115,10 +111,10 @@ export function SectionSkeleton() {
     <div className="space-y-6 animate-pulse">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="h-32 rounded-2xl bg-slate-800/60 border border-slate-800" />
+          <div key={i} className="h-28 rounded-xl bg-gray-100 border border-gray-200" />
         ))}
       </div>
-      <div className="h-80 rounded-2xl bg-slate-800/60 border border-slate-800" />
+      <div className="h-80 rounded-xl bg-gray-100 border border-gray-200" />
     </div>
   );
 }
@@ -126,7 +122,7 @@ export function SectionSkeleton() {
 export function ChartSkeleton({ height = 320 }: { height?: number }) {
   return (
     <div
-      className="rounded-2xl bg-slate-800/60 border border-slate-800 animate-pulse"
+      className="rounded-xl bg-gray-100 border border-gray-200 animate-pulse"
       style={{ height }}
     />
   );

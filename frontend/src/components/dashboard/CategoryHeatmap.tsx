@@ -12,11 +12,11 @@ interface CategoryHeatmapProps {
 }
 
 function heatColor(value: number, max: number): string {
-  if (max <= 0) return "#1e293b";
+  if (max <= 0) return "#f3f4f6";
   const t = Math.min(1, value / max);
-  const r = Math.round(30 + t * (99 - 30));
-  const g = Math.round(41 + t * (102 - 41));
-  const b = Math.round(59 + t * (241 - 59));
+  const r = Math.round(230 + t * (93 - 230));
+  const g = Math.round(240 + t * (135 - 240));
+  const b = Math.round(252 + t * (255 - 252));
   return `rgb(${r},${g},${b})`;
 }
 
@@ -52,7 +52,7 @@ export function CategoryHeatmap({ data, loading = false }: CategoryHeatmapProps)
           {data.categories.map((cat) => (
             <div
               key={cat}
-              className="text-[10px] font-semibold text-slate-400 text-center px-1 pb-1 truncate"
+              className="text-[10px] font-semibold text-gray-500 text-center px-1 pb-1 truncate"
               title={cat}
             >
               {cat.split(" ")[0]}
@@ -60,7 +60,7 @@ export function CategoryHeatmap({ data, loading = false }: CategoryHeatmapProps)
           ))}
           {data.regions.map((region, ri) => (
             <div key={region} className="contents">
-              <div className="text-xs font-bold text-slate-300 pr-2 flex items-center">
+              <div className="text-xs font-bold text-gray-700 pr-2 flex items-center">
                 {region}
               </div>
               {data.categories.map((category, ci) => {
@@ -68,10 +68,10 @@ export function CategoryHeatmap({ data, loading = false }: CategoryHeatmapProps)
                 return (
                   <div
                     key={`${region}-${category}`}
-                    className="rounded-md border border-slate-800 flex items-center justify-center text-[10px] font-semibold min-h-[2.25rem] px-1"
+                    className="rounded-md border border-gray-200 flex items-center justify-center text-[10px] font-semibold min-h-[2.25rem] px-1"
                     style={{
                       backgroundColor: heatColor(value, maxValue),
-                      color: value > maxValue * 0.55 ? "#fff" : "#cbd5e1",
+                      color: value > maxValue * 0.55 ? "#fff" : "#374151",
                     }}
                     title={`${region} · ${category}: ${formatCurrency(value)}`}
                   >
@@ -88,7 +88,7 @@ export function CategoryHeatmap({ data, loading = false }: CategoryHeatmapProps)
         </div>
       </div>
       <div className="flex items-center justify-between gap-4 flex-wrap">
-        <div className="flex items-center gap-2 text-xs text-slate-500">
+        <div className="flex items-center gap-2 text-xs text-gray-500">
           <span>Low</span>
           <div
             className="h-2 w-24 rounded-full"

@@ -1,6 +1,6 @@
 /**
  * Client-side PDF export for the active dashboard tab.
- * Uses html2canvas + jsPDF with a white background for readable output on dark theme.
+ * Uses html2canvas-pro (supports lab/oklch from Tailwind v4) + jsPDF.
  */
 
 export async function exportElementToPdf(
@@ -8,7 +8,7 @@ export async function exportElementToPdf(
   filename: string,
 ): Promise<void> {
   const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
-    import("html2canvas"),
+    import("html2canvas-pro"),
     import("jspdf"),
   ]);
 
@@ -17,20 +17,6 @@ export async function exportElementToPdf(
     scale: 2,
     useCORS: true,
     logging: false,
-    onclone: (_doc, clonedEl) => {
-      clonedEl.style.backgroundColor = "#ffffff";
-      clonedEl.style.color = "#111827";
-      clonedEl.querySelectorAll<HTMLElement>("[class*='bg-slate'], [class*='text-slate']").forEach(
-        (node) => {
-          if (node.className.includes("bg-slate")) {
-            node.style.backgroundColor = "#f8fafc";
-          }
-          if (node.className.includes("text-white") || node.className.includes("text-slate")) {
-            node.style.color = "#1e293b";
-          }
-        },
-      );
-    },
   });
 
   const imgData = canvas.toDataURL("image/png");

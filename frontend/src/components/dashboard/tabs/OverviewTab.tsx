@@ -100,7 +100,7 @@ export function OverviewTab({ section }: OverviewTabProps) {
                 ? "positive"
                 : "negative"
             }
-            color="from-indigo-500 to-indigo-600"
+            accent="blue"
             delay={0}
           />
           <MetricCard
@@ -116,7 +116,7 @@ export function OverviewTab({ section }: OverviewTabProps) {
               compareKpis?.contribution_margin,
             )}
             changeType="positive"
-            color="from-emerald-500 to-emerald-600"
+            accent="teal"
             delay={100}
           />
           <MetricCard
@@ -128,7 +128,7 @@ export function OverviewTab({ section }: OverviewTabProps) {
               compareKpis?.average_order_value,
             )}
             changeType="neutral"
-            color="from-cyan-500 to-cyan-600"
+            accent="cyan"
             delay={200}
           />
           <MetricCard
@@ -137,7 +137,7 @@ export function OverviewTab({ section }: OverviewTabProps) {
             change="Revenue rate"
             compareDelta={compareLabel(kpis?.sales_velocity, compareKpis?.sales_velocity)}
             changeType="neutral"
-            color="from-orange-500 to-orange-600"
+            accent="orange"
             delay={300}
           />
         </div>
@@ -152,7 +152,7 @@ export function OverviewTab({ section }: OverviewTabProps) {
               compareKpis?.discount_impact_rate,
             )}
             changeType="negative"
-            color="from-rose-500 to-rose-600"
+            accent="rose"
             delay={400}
           />
           <MetricCard
@@ -164,7 +164,7 @@ export function OverviewTab({ section }: OverviewTabProps) {
               compareKpis?.repeat_purchase_rate,
             )}
             changeType="positive"
-            color="from-purple-500 to-purple-600"
+            accent="purple"
             delay={500}
           />
           <MetricCard
@@ -176,7 +176,7 @@ export function OverviewTab({ section }: OverviewTabProps) {
               compareKpis?.total_transactions,
             )}
             changeType="neutral"
-            color="from-pink-500 to-pink-600"
+            accent="pink"
             delay={600}
           />
           <MetricCard
@@ -188,19 +188,19 @@ export function OverviewTab({ section }: OverviewTabProps) {
               compareKpis?.unique_customers,
             )}
             changeType="neutral"
-            color="from-sky-500 to-sky-600"
+            accent="sky"
             delay={700}
           />
         </div>
 
         {trendData && (
-          <Card className="bg-slate-900/40 border-slate-800">
+          <Card className="bg-white border border-gray-100 shadow-sm">
             <CardHeader className="flex flex-row items-start justify-between gap-3">
               <div>
-                <CardTitle className="text-xl font-bold text-white">
+                <CardTitle className="text-lg font-semibold text-gray-900">
                   Monthly Revenue Trend
                 </CardTitle>
-                <CardDescription className="text-slate-400">
+                <CardDescription className="text-gray-500">
                   Track monthly sales growth trajectory and volumes. CSV uses a single file
                   with KPI rows (section=KPI) and trend rows (section=TREND).
                 </CardDescription>
@@ -210,7 +210,7 @@ export function OverviewTab({ section }: OverviewTabProps) {
                 variant="outline"
                 size="sm"
                 disabled={loading || !kpis}
-                className="text-xs border-slate-700 text-slate-300 shrink-0"
+                className="text-xs border-gray-200 text-gray-700 shrink-0"
                 onClick={() => kpis && exportOverviewCsv(kpis, trendData)}
               >
                 Export CSV
@@ -228,10 +228,10 @@ export function OverviewTab({ section }: OverviewTabProps) {
                       <stop offset="95%" stopColor="#6366F1" stopOpacity={0.0} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
                   <XAxis
                     dataKey="year_month"
-                    stroke="#64748b"
+                    stroke="#9ca3af"
                     tick={CHART_AXIS_TICK}
                     tickFormatter={formatYearMonth}
                     interval={computeTickInterval(monthCount, 10)}
@@ -240,7 +240,7 @@ export function OverviewTab({ section }: OverviewTabProps) {
                     height={56}
                   />
                   <YAxis
-                    stroke="#64748b"
+                    stroke="#9ca3af"
                     tick={CHART_AXIS_TICK}
                     tickFormatter={currencyTick}
                     width={72}
@@ -271,12 +271,12 @@ export function OverviewTab({ section }: OverviewTabProps) {
         )}
 
         {yoyChartData.length > 0 && (
-          <Card className="bg-slate-900/40 border-slate-800">
+          <Card className="bg-white border border-gray-100 shadow-sm">
             <CardHeader>
-              <CardTitle className="text-xl font-bold text-white">
+              <CardTitle className="text-lg font-semibold text-gray-900">
                 Year-over-Year Revenue Growth
               </CardTitle>
-              <CardDescription className="text-slate-400">
+              <CardDescription className="text-gray-500">
                 Monthly revenue change vs the prior year (latest year in filter range)
               </CardDescription>
             </CardHeader>
@@ -286,10 +286,10 @@ export function OverviewTab({ section }: OverviewTabProps) {
                   data={yoyChartData}
                   margin={{ top: 8, right: 16, left: 8, bottom: 8 }}
                 >
-                  <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
-                  <XAxis dataKey="label" stroke="#64748b" tick={CHART_AXIS_TICK} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
+                  <XAxis dataKey="label" stroke="#9ca3af" tick={CHART_AXIS_TICK} />
                   <YAxis
-                    stroke="#64748b"
+                    stroke="#9ca3af"
                     tick={CHART_AXIS_TICK}
                     tickFormatter={(val: number) => `${val.toFixed(0)}%`}
                     width={48}
@@ -301,7 +301,7 @@ export function OverviewTab({ section }: OverviewTabProps) {
                       style: { textAnchor: "middle", fontSize: 11 },
                     }}
                   />
-                  <ReferenceLine y={0} stroke="#64748b" strokeDasharray="3 3" />
+                  <ReferenceLine y={0} stroke="#9ca3af" strokeDasharray="3 3" />
                   <Tooltip
                     contentStyle={CHART_TOOLTIP_STYLE}
                     formatter={(val: number) => [`${val.toFixed(1)}%`, "YoY Growth"]}

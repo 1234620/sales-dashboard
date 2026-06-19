@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DashboardTabs } from "@/components/dashboard/DashboardTabs";
 import { InsightsPanel } from "@/components/dashboard/InsightsPanel";
+import { dashboardTheme } from "@/components/dashboard/theme";
 import {
   countActiveFilters,
   FilterPanel,
@@ -75,6 +76,7 @@ export default function Dashboard() {
   const dashboardRequestId = useRef(0);
   const tabExportRef = useRef<HTMLDivElement>(null);
   const [pdfExporting, setPdfExporting] = useState(false);
+  const [pdfError, setPdfError] = useState<string | null>(null);
 
   const loadDashboardData = useCallback(async () => {
     const requestId = ++dashboardRequestId.current;
@@ -357,8 +359,11 @@ export default function Dashboard() {
     const el = tabExportRef.current;
     if (!el) return;
     setPdfExporting(true);
+    setPdfError(null);
     try {
       await exportElementToPdf(el, pdfFilename(activeTab));
+    } catch (err) {
+      setPdfError(err instanceof Error ? err.message : "PDF export failed");
     } finally {
       setPdfExporting(false);
     }
@@ -389,33 +394,30 @@ export default function Dashboard() {
                 : margins.loading;
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-slate-900 via-slate-950 to-indigo-950/40">
-      <div className="border-b border-slate-900 bg-slate-900/40 backdrop-blur-md">
-        <div className="max-w-7xl mx-auto px-6 py-6 md:py-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+    <div className={dashboardTheme.page}>
+      <header className={dashboardTheme.header}>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 md:py-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white via-indigo-200 to-indigo-400 tracking-tight">
-              Parasnath Distribution Group
-            </h1>
-            <p className="text-slate-400 text-sm mt-1">
-              FMCG Sales Performance & Intelligent Forecasting Dashboard
+            <h1 className={dashboardTheme.headerTitle}>Parasnath Distribution Group</h1>
+            <p className={dashboardTheme.headerSubtitle}>
+              FMCG Sales Performance & Forecasting Dashboard
             </p>
           </div>
-          <div className="text-right text-xs text-slate-500">
+          <div className={`text-right ${dashboardTheme.headerMeta}`}>
             <p>
-              Database:{" "}
-              <span className="text-indigo-400 font-semibold">
+              Transactions:{" "}
+              <span className={dashboardTheme.headerMetaAccent}>
                 {overview.data
                   ? formatNumber(overview.data.kpis.total_transactions)
                   : "—"}
-              </span>{" "}
-              Transactions
+              </span>
             </p>
-            <p className="mt-0.5">Updated: June 2026</p>
+            <p className="mt-0.5">Updated June 2026</p>
           </div>
         </div>
-      </div>
+      </header>
 
-      <div className="max-w-7xl mx-auto px-6 py-8">
+      <div className={dashboardTheme.main}>
         <FilterPanel
           filters={filters}
           activeFilterCount={activeFilterCount}
@@ -431,6 +433,12 @@ export default function Dashboard() {
           exportPdfDisabled={pdfExporting || sectionLoading}
           onReset={resetFilters}
         />
+
+        {pdfError && (
+          <div className={`${dashboardTheme.error} mb-4`}>
+            PDF export failed: {pdfError}
+          </div>
+        )}
 
         <InsightsPanel insights={insights} />
 
@@ -471,26 +479,13 @@ export default function Dashboard() {
         />
       </div>
 
-      <div className="border-t border-slate-900 bg-slate-900/20 py-8 mt-12 text-center text-xs text-slate-500">
+      <footer className={dashboardTheme.footer}>
         <p>
-          Built by <span className="font-semibold text-slate-400">Ahmed Moosani</span> — MBA Tech
+          Built by <span className={dashboardTheme.footerAccent}>Ahmed Moosani</span> — MBA Tech
           (AI), MPSTME NMIMS Mumbai
         </p>
         <p className="mt-1">Internship Project at Parasnath Distribution Group | 2026</p>
-      </div>
-
-      <style>{`
-        @keyframes slideUp {
-          from {
-            opacity: 0;
-            transform: translateY(16px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-      `}</style>
+      </footer>
     </div>
   );
 }

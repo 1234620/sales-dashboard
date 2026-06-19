@@ -13,6 +13,7 @@ import os
 
 # Add project root to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+import config
 from src import kpis
 
 
@@ -47,6 +48,7 @@ def sample_data():
         "state": ["Maharashtra", "Karnataka", "Maharashtra", "Delhi", "West Bengal"],
         "channel": ["online", "offline", "online", "offline", "online"],
         "return_flag": [False, False, True, False, False],
+        "stock_constrained": [False, False, False, True, False],
         "gross_revenue": [50000.0, 3000.0, 50000.0, 5000.0, 1500.0],
         "year_month": ["2024-01", "2024-01", "2024-02", "2024-02", "2024-03"],
         "year": [2024, 2024, 2024, 2024, 2024],
@@ -159,3 +161,106 @@ class TestSalesVelocity:
     def test_empty(self, sample_data):
         empty = sample_data.iloc[:0]
         assert kpis.sales_velocity(empty) == 0.0
+
+
+class TestCategoryContributionMargin:
+    def test_margin_pct_non_negative(self, sample_data):
+        result = kpis.category_contribution_margin(sample_data)
+        assert (result["margin_pct"] >= 0).all()
+        assert (result["margin"] > 0).all()
+
+    def test_no_double_discount(self, sample_data):
+        beverages = sample_data[sample_data["product_category"] == "Beverages"]
+        result = kpis.category_contribution_margin(sample_data)
+        row = result[result["product_category"] == "Beverages"].iloc[0]
+        revenue = beverages["net_revenue"].sum()
+        returns = beverages.loc[beverages["return_flag"], "net_revenue"].sum()
+        import config
+        expected_margin = revenue - returns - revenue * config.FULFILLMENT_COST_RATE
+        assert abs(row["margin"] - expected_margin) < 0.01
+
+    def test_categorical_product_category(self, sample_data):
+        df = sample_data.copy()
+        df["product_category"] = df["product_category"].astype("category")
+        result = kpis.category_contribution_margin(df)
+        assert len(result) == df["product_category"].nunique()
+
+
+class TestFestiveSeasonUplift:
+    def test_uses_unique_days_not_row_counts(self):
+        """Multiple transactions on one festive day must not dilute the daily average."""
+        dates = [pd.Timestamp("2024-03-05")] * 10 + [pd.Timestamp("2024-06-01")]
+        df = pd.DataFrame({
+            "date": dates,
+            "net_revenue": [1000.0] * 11,
+        })
+        result = kpis.festive_season_uplift(df)
+        holi = result[result["festival"] == "Holi"].iloc[0]
+        # 10k on one Holi day vs 1k on one normal day → ~900% uplift, not 0%
+        assert holi["uplift_pct"] > 100
+
+
+class TestYoYGrowth:
+    def test_returns_chart_columns(self, sample_data):
+        df = pd.concat(
+            [
+                sample_data.assign(year=2023, year_month="2023-01"),
+                sample_data.assign(year=2024),
+            ],
+            ignore_index=True,
+        )
+        result = kpis.yoy_growth(df)
+        assert list(result.columns) == [
+            "month", "label", "yoy_growth_pct", "current_revenue", "prior_revenue"
+        ]
+        assert len(result) == 12
+
+    def test_single_year_returns_empty(self, sample_data):
+        result = kpis.yoy_growth(sample_data)
+        assert result.empty
+
+
+class TestAnomalyScores:
+    def _daily_df(self, rows):
+        return pd.DataFrame(rows)
+
+    def test_requires_zscore_and_min_delta(self):
+        dates = pd.date_range("2024-01-01", periods=40, freq="D")
+        revenues = [400_000.0] * 40
+        revenues[30] = 401_000.0  # tiny bump: high z unlikely, low delta
+        df = self._daily_df({
+            "date": dates,
+            "net_revenue": revenues,
+        })
+        result = kpis.anomaly_scores(df)
+        assert not result["is_anomaly"].any()
+
+    def test_festive_day_excluded(self, monkeypatch):
+        monkeypatch.setattr(config, "ANOMALY_EXCLUDE_FESTIVE_DAYS", True)
+        monkeypatch.setattr(config, "ANOMALY_MIN_REVENUE_DELTA", 1_000)
+        monkeypatch.setattr(config, "ZSCORE_THRESHOLD", 1.5)
+        dates = pd.date_range("2024-03-01", periods=40, freq="D")
+        revenues = [300_000.0] * 40
+        revenues[10] = 1_500_000.0  # Holi window spike on 2024-03-11
+        df = self._daily_df({
+            "date": dates,
+            "net_revenue": revenues,
+        })
+        result = kpis.anomaly_scores(df)
+        holi_row = result[result["date"] == pd.Timestamp("2024-03-11")]
+        assert len(holi_row) == 1
+        assert holi_row["is_anomaly"].iloc[0] is False or holi_row["is_anomaly"].iloc[0] == False
+
+    def test_flags_large_non_festive_deviation(self, monkeypatch):
+        monkeypatch.setattr(config, "ANOMALY_EXCLUDE_FESTIVE_DAYS", True)
+        monkeypatch.setattr(config, "ANOMALY_MIN_REVENUE_DELTA", 100_000)
+        monkeypatch.setattr(config, "ZSCORE_THRESHOLD", 2.0)
+        dates = pd.date_range("2024-06-01", periods=40, freq="D")
+        revenues = [400_000.0] * 40
+        revenues[25] = 1_200_000.0
+        df = self._daily_df({
+            "date": dates,
+            "net_revenue": revenues,
+        })
+        result = kpis.anomaly_scores(df)
+        assert result["is_anomaly"].sum() >= 1

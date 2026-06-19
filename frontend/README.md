@@ -28,9 +28,21 @@ Open **http://localhost:3000** in your browser. Do not use `streamlit run` or po
 |------|---------|
 | `app/page.tsx` | Main dashboard shell — filters, tab routing, data fetching |
 | `src/components/dashboard/tabs/` | One file per tab (Overview, Regional, Products, Trends, Forecasting, Anomalies, Margins) |
-| `src/lib/api.ts` | HTTP client → FastAPI (`localhost:8000`) |
+| `src/lib/api.ts` | HTTP client → FastAPI (`NEXT_PUBLIC_API_URL`, default `http://localhost:8000`) |
 | `src/lib/chart-utils.ts` | Shared axis formatting, tick intervals, MAPE helper |
 | `src/lib/types.ts` | TypeScript types matching API responses |
+
+## Environment
+
+Copy the example env file and adjust if the backend runs on a different host or port:
+
+```bash
+cp .env.local.example .env.local
+```
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `NEXT_PUBLIC_API_URL` | `http://localhost:8000` | FastAPI base URL for all dashboard API calls |
 
 ## Scripts
 

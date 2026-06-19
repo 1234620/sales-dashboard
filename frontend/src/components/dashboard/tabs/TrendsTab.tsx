@@ -123,8 +123,9 @@ export function TrendsTab({
           </div>
         </CardHeader>
         <CardContent>
-          <ResponsiveContainer width="100%" height={420}>
+          <ResponsiveContainer width="100%" height={420} minWidth={0} debounce={50}>
             <LineChart
+              key={`${trendGroupBy ?? "all"}-${pointCount}`}
               data={processedTrendData}
               margin={{ top: 8, right: 16, left: 8, bottom: 8 }}
             >
@@ -158,37 +159,38 @@ export function TrendsTab({
                 formatter={(val: number) => formatCurrency(val)}
               />
               <Legend wrapperStyle={CHART_LEGEND_STYLE} />
-              {!trendGroupBy ? (
-                <>
-                  {showDaily && (
-                    <Line
-                      type="monotone"
-                      dataKey="revenue"
-                      stroke="#475569"
-                      strokeWidth={1}
-                      dot={false}
-                      name="Daily Revenue"
-                      opacity={0.25}
-                    />
-                  )}
-                  <Line
-                    type="monotone"
-                    dataKey="ma30"
-                    stroke="#6366F1"
-                    strokeWidth={2.5}
-                    dot={false}
-                    name="30-day MA"
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="ma90"
-                    stroke="#F59E0B"
-                    strokeWidth={2.5}
-                    dot={false}
-                    name="90-day MA"
-                  />
-                </>
-              ) : (
+              {!trendGroupBy && showDaily && (
+                <Line
+                  type="monotone"
+                  dataKey="revenue"
+                  stroke="#475569"
+                  strokeWidth={1}
+                  dot={false}
+                  name="Daily Revenue"
+                  opacity={0.25}
+                />
+              )}
+              {!trendGroupBy && (
+                <Line
+                  type="monotone"
+                  dataKey="ma30"
+                  stroke="#6366F1"
+                  strokeWidth={2.5}
+                  dot={false}
+                  name="30-day MA"
+                />
+              )}
+              {!trendGroupBy && (
+                <Line
+                  type="monotone"
+                  dataKey="ma90"
+                  stroke="#F59E0B"
+                  strokeWidth={2.5}
+                  dot={false}
+                  name="90-day MA"
+                />
+              )}
+              {trendGroupBy &&
                 groupNames.map((grpName, idx) => {
                   const style = GROUPED_LINE_STYLES[idx % GROUPED_LINE_STYLES.length];
                   return (
@@ -203,8 +205,7 @@ export function TrendsTab({
                       name={grpName}
                     />
                   );
-                })
-              )}
+                })}
             </LineChart>
           </ResponsiveContainer>
         </CardContent>

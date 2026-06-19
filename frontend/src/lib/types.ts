@@ -16,6 +16,7 @@ export interface KPIData {
   total_transactions: number;
   unique_customers: number;
   mom_growth: number;
+  yoy_growth: number;
 }
 
 export interface RevenueTrendPoint {
@@ -26,6 +27,18 @@ export interface RevenueTrendPoint {
 
 export interface TrendData {
   data: RevenueTrendPoint[];
+}
+
+export interface YoYGrowthPoint {
+  month: number;
+  label: string;
+  yoy_growth_pct: number | null;
+  current_revenue: number;
+  prior_revenue: number;
+}
+
+export interface YoYGrowthData {
+  data: YoYGrowthPoint[];
 }
 
 export interface RegionalData {
@@ -57,6 +70,7 @@ export interface AnomalyPoint {
   daily_revenue: number;
   rolling_mean: number;
   z_score: number;
+  revenue_deviation?: number;
   is_anomaly: boolean;
 }
 
@@ -64,6 +78,10 @@ export interface AnomalyData {
   data: AnomalyPoint[];
   total_days: number;
   anomalies_count: number;
+  zscore_threshold?: number;
+  rolling_window_days?: number;
+  min_revenue_delta?: number;
+  exclude_festive_days?: boolean;
 }
 
 export interface ChannelMixData {
@@ -114,8 +132,9 @@ export interface ForecastData {
   forecast: ForecastPoint[];
   validation: ForecastValidationPoint[];
   training_periods: number;
-  error?: string;
 }
+
+export type ForecastResponse = ForecastData | { error: string };
 
 export type TrendGroupBy = "region" | "product_category" | null;
 
@@ -148,6 +167,7 @@ export interface SectionState<T> {
 export type OverviewSection = SectionState<{
   kpis: KPIData;
   trend: TrendData;
+  yoy: YoYGrowthData;
 }>;
 
 export type RegionalSection = SectionState<RegionalData[]>;
@@ -157,7 +177,10 @@ export type ProductsSection = SectionState<{
 }>;
 export type TrendsSection = SectionState<DailyRevenueData>;
 export type ForecastSection = SectionState<ForecastData>;
-export type AnomaliesSection = SectionState<AnomalyData>;
+export type AnomaliesSection = SectionState<{
+  series: AnomalyData;
+  flagged: AnomalyData;
+}>;
 export type MarginsSection = SectionState<{
   returns: ReturnRateData[];
   channel: ChannelMixData[];

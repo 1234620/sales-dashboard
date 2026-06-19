@@ -141,7 +141,7 @@ sales-dashboard/
 | **`config.py` centralizes everything** | Centralizes category weights, B2B price ranges, festive season windows, and validation parameters. |
 | **React-recharts visualization** | Interactive, smooth vector graphs natively integrated in the React lifecycle. |
 | **Lakhs / Crores formatting** | Uses standard Indian number formatting (`Cr`, `L`, `K`) to represent B2B FMCG revenues. |
-| **Prophet caching on backend** | Retraining Facebook Prophet on every click is slow; the model is computed/cached dynamically. |
+| **Prophet caching on backend** | Prophet trains once at FastAPI startup (`src/model_cache.py`); `/api/forecast` reuses the cached model. Use `POST /api/forecast/refresh` to retrain after data changes. |
 
 ---
 
@@ -151,7 +151,7 @@ sales-dashboard/
 python3 -m pytest tests/ -v
 ```
 
-Tests cover: total revenue, AOV, discount rate, MoM growth, regional share, repeat purchase rate, return rates, channel mix, and sales velocity.
+Tests cover: KPI unit tests (`test_kpis.py`) and API integration tests (`test_api.py`) — health, KPIs, YoY growth, anomaly payloads, and forecast cache behavior.
 
 ---
 
@@ -164,6 +164,7 @@ Tests cover: total revenue, AOV, discount rate, MoM growth, regional share, repe
 - 16 KPI computations and Prophet forecasting
 - Premium dark-theme **Next.js / TypeScript** dashboard with per-tab components (`frontend/src/components/dashboard/tabs/`)
 - Phase 2 chart readability fixes (Recharts: axis labels, confidence bands, SKU tooltips, dynamic MAPE, etc.)
+- Phase 4 backend: Prophet model cache, YoY growth API, festive uplift & margin KPI fixes, anomaly `flagged_only` param
 - Fully integrated control panel and filter pills (Region, Category, Channel, Date Range)
 - Unit tests for KPIs
 

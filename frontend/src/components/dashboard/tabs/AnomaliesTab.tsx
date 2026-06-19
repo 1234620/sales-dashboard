@@ -2,7 +2,7 @@
 
 import { MetricCard, TabSection } from "@/components/dashboard/MetricCard";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import type { AnomaliesSection } from "@/lib/types";
+import type { AnomaliesSection, AnomalyPoint } from "@/lib/types";
 import {
   CHART_AXIS_TICK,
   CHART_LEGEND_STYLE,
@@ -11,7 +11,7 @@ import {
   formatShortDate,
 } from "@/lib/chart-utils";
 import { formatCurrency, formatDate } from "@/lib/format";
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Brush,
   CartesianGrid,
@@ -28,6 +28,19 @@ interface AnomaliesTabProps {
   section: AnomaliesSection;
 }
 
+type AnomalyTypeFilter = "all" | "spike" | "drop";
+
+const FLAGGED_PAGE_SIZE = 10;
+
+function anomalyType(zScore: number): "spike" | "drop" {
+  return zScore >= 0 ? "spike" : "drop";
+}
+
+function matchesTypeFilter(row: AnomalyPoint, filter: AnomalyTypeFilter): boolean {
+  if (filter === "all") return true;
+  return anomalyType(row.z_score) === filter;
+}
+
 interface AnomalyDotProps {
   cx?: number;
   cy?: number;
@@ -39,34 +52,85 @@ function currencyTick(value: number): string {
 }
 
 function AnomalyDot({ cx, cy, payload }: AnomalyDotProps) {
-  if (cx === undefined || cy === undefined) {
-    return <g />;
+  if (cx === undefined || cy === undefined || !payload?.is_anomaly) {
+    return <circle cx={cx ?? 0} cy={cy ?? 0} r={0} fill="none" stroke="none" />;
   }
-  if (payload?.is_anomaly) {
-    return (
-      <circle
-        cx={cx}
-        cy={cy}
-        r={8}
-        fill="#EF4444"
-        stroke="#fff"
-        strokeWidth={2}
-      />
-    );
-  }
-  return <g />;
+  return (
+    <circle
+      cx={cx}
+      cy={cy}
+      r={8}
+      fill="#EF4444"
+      stroke="#fff"
+      strokeWidth={2}
+    />
+  );
+}
+
+function filterButtonClass(active: boolean): string {
+  return `text-xs px-3 py-1.5 rounded-lg transition-all ${
+    active
+      ? "bg-indigo-600 text-white font-bold"
+      : "text-slate-400 hover:text-white"
+  }`;
 }
 
 export function AnomaliesTab({ section }: AnomaliesTabProps) {
   const { data: anomalyData, loading, error } = section;
+  const seriesData = anomalyData?.series;
+  const flaggedData = anomalyData?.flagged;
+
+  const [typeFilter, setTypeFilter] = useState<AnomalyTypeFilter>("all");
+  const [flaggedPage, setFlaggedPage] = useState(1);
+
+  const zscoreThreshold = seriesData?.zscore_threshold ?? 2.5;
+  const rollingWindow = seriesData?.rolling_window_days ?? 30;
+  const minRevenueDelta = seriesData?.min_revenue_delta ?? 100_000;
+  const excludeFestive = seriesData?.exclude_festive_days ?? true;
+
+  const sortedFlagged = useMemo(() => {
+    if (!flaggedData?.data) return [];
+    return [...flaggedData.data].sort(
+      (a, b) => Math.abs(b.z_score) - Math.abs(a.z_score),
+    );
+  }, [flaggedData]);
+
+  const filteredFlagged = useMemo(
+    () => sortedFlagged.filter((row) => matchesTypeFilter(row, typeFilter)),
+    [sortedFlagged, typeFilter],
+  );
+
+  const flaggedPageCount = Math.max(
+    1,
+    Math.ceil(filteredFlagged.length / FLAGGED_PAGE_SIZE),
+  );
+
+  useEffect(() => {
+    setFlaggedPage(1);
+  }, [filteredFlagged.length, typeFilter]);
+
+  useEffect(() => {
+    if (flaggedPage > flaggedPageCount) {
+      setFlaggedPage(flaggedPageCount);
+    }
+  }, [flaggedPage, flaggedPageCount]);
+
+  const tableRows = useMemo(() => {
+    const start = (flaggedPage - 1) * FLAGGED_PAGE_SIZE;
+    return filteredFlagged.slice(start, start + FLAGGED_PAGE_SIZE);
+  }, [filteredFlagged, flaggedPage]);
+
+  const tableRangeStart =
+    filteredFlagged.length === 0 ? 0 : (flaggedPage - 1) * FLAGGED_PAGE_SIZE + 1;
+  const tableRangeEnd = Math.min(flaggedPage * FLAGGED_PAGE_SIZE, filteredFlagged.length);
 
   const chartData = useMemo(() => {
-    if (!anomalyData?.data) return [];
-    return anomalyData.data.map((d) => ({
+    if (!seriesData?.data) return [];
+    return seriesData.data.map((d) => ({
       ...d,
       date: d.date.split("T")[0],
     }));
-  }, [anomalyData]);
+  }, [seriesData]);
 
   const defaultBrushStart = useMemo(() => {
     if (chartData.length <= 90) return 0;
@@ -74,28 +138,28 @@ export function AnomaliesTab({ section }: AnomaliesTabProps) {
   }, [chartData.length]);
 
   return (
-    <TabSection loading={loading} error={error} hasData={!!anomalyData}>
-      {anomalyData && (
+    <TabSection loading={loading} error={error} hasData={!!seriesData}>
+      {seriesData && flaggedData && (
         <div className="space-y-8">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <MetricCard
               title="Total Days Analyzed"
-              value={anomalyData.total_days}
+              value={seriesData.total_days}
               change="Daily trend size"
               changeType="neutral"
               color="from-indigo-500 to-indigo-600"
             />
             <MetricCard
               title="Anomalous Days"
-              value={anomalyData.anomalies_count}
-              change={`${((anomalyData.anomalies_count / anomalyData.total_days) * 100).toFixed(1)}% anomaly rate`}
+              value={seriesData.anomalies_count}
+              change={`${((seriesData.anomalies_count / seriesData.total_days) * 100).toFixed(1)}% anomaly rate`}
               changeType="negative"
               color="from-rose-500 to-rose-600"
             />
             <MetricCard
-              title="Z-Score Limit"
-              value="±2.00 Std Dev"
-              change="Statistical cutoff"
+              title="Detection Rules"
+              value={`|z| > ${zscoreThreshold.toFixed(1)}`}
+              change={`Min Δ ${formatCurrency(minRevenueDelta)}${excludeFestive ? " · festive excluded" : ""}`}
               changeType="neutral"
               color="from-amber-500 to-amber-600"
             />
@@ -107,8 +171,8 @@ export function AnomaliesTab({ section }: AnomaliesTabProps) {
                 Daily Revenue Anomaly Timeline
               </CardTitle>
               <CardDescription className="text-slate-400">
-                Z-score deviations highlighting days with unexpected sales spikes or drops.
-                Drag the brush below to zoom into a date range.
+                {rollingWindow}-day rolling z-score. Red dots = flagged days (festive windows
+                excluded when configured).
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -162,7 +226,7 @@ export function AnomaliesTab({ section }: AnomaliesTabProps) {
                     strokeDasharray="4 4"
                     strokeWidth={2}
                     dot={false}
-                    name="30-day Mean"
+                    name={`${rollingWindow}-day Mean`}
                   />
                   <Brush
                     dataKey="date"
@@ -179,52 +243,137 @@ export function AnomaliesTab({ section }: AnomaliesTabProps) {
           </Card>
 
           <Card className="bg-slate-900/40 border-slate-800">
-            <CardHeader>
-              <CardTitle className="text-xl font-bold text-white">
-                🚨 Flagged Anomalous Days
-              </CardTitle>
-              <CardDescription className="text-slate-400">
-                Detailed list of dates exceeding the statistical z-score bounds
-              </CardDescription>
+            <CardHeader className="flex flex-col gap-4">
+              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
+                <div>
+                  <CardTitle className="text-xl font-bold text-white">
+                    Flagged Anomalous Days
+                  </CardTitle>
+                  <CardDescription className="text-slate-400">
+                    Sorted by severity (highest |z-score| first), 10 rows per page.
+                  </CardDescription>
+                </div>
+                {filteredFlagged.length > 0 && (
+                  <p className="text-xs text-slate-500 shrink-0">
+                    Showing {tableRangeStart}–{tableRangeEnd} of {filteredFlagged.length}
+                  </p>
+                )}
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="flex items-center gap-1.5 bg-slate-800/80 p-1.5 rounded-xl border border-slate-700">
+                  <button
+                    type="button"
+                    onClick={() => setTypeFilter("all")}
+                    className={filterButtonClass(typeFilter === "all")}
+                  >
+                    All
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTypeFilter("spike")}
+                    className={filterButtonClass(typeFilter === "spike")}
+                  >
+                    Spikes only
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTypeFilter("drop")}
+                    className={filterButtonClass(typeFilter === "drop")}
+                  >
+                    Drops only
+                  </button>
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm text-left">
-                  <thead>
-                    <tr className="border-b border-slate-850 text-slate-400">
-                      <th className="py-3 px-4">Date</th>
-                      <th className="py-3 px-4 text-right">Actual Revenue</th>
-                      <th className="py-3 px-4 text-right">Rolling Average</th>
-                      <th className="py-3 px-4 text-right">Z-Score</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {anomalyData.data
-                      .filter((d) => d.is_anomaly)
-                      .map((row) => (
-                        <tr
-                          key={row.date}
-                          className="border-b border-slate-900 hover:bg-slate-900/40"
-                        >
-                          <td className="py-3.5 px-4 font-bold text-slate-200">
-                            {row.date.split("T")[0]}
-                          </td>
-                          <td className="py-3.5 px-4 text-right font-semibold text-white">
-                            {formatCurrency(row.daily_revenue)}
-                          </td>
-                          <td className="py-3.5 px-4 text-right text-slate-400">
-                            {formatCurrency(row.rolling_mean)}
-                          </td>
-                          <td className="py-3.5 px-4 text-right">
-                            <span className="px-2 py-0.5 rounded bg-rose-500/10 text-rose-400 border border-rose-500/20 font-bold text-xs">
-                              {row.z_score.toFixed(2)}
-                            </span>
-                          </td>
+              {filteredFlagged.length === 0 ? (
+                <p className="text-sm text-slate-400 py-6 text-center">
+                  No flagged days match the current filters and detection rules.
+                </p>
+              ) : (
+                <>
+                  <div className="overflow-x-auto max-h-[420px] overflow-y-auto">
+                    <table className="w-full text-sm text-left">
+                      <thead className="sticky top-0 bg-slate-900/95 z-10">
+                        <tr className="border-b border-slate-850 text-slate-400">
+                          <th className="py-3 px-4">Date</th>
+                          <th className="py-3 px-4">Type</th>
+                          <th className="py-3 px-4 text-right">Actual Revenue</th>
+                          <th className="py-3 px-4 text-right">Rolling Average</th>
+                          <th className="py-3 px-4 text-right">Deviation</th>
+                          <th className="py-3 px-4 text-right">Z-Score</th>
                         </tr>
-                      ))}
-                  </tbody>
-                </table>
-              </div>
+                      </thead>
+                      <tbody>
+                        {tableRows.map((row) => {
+                          const type = anomalyType(row.z_score);
+                          const deviation =
+                            row.revenue_deviation ??
+                            Math.abs(row.daily_revenue - row.rolling_mean);
+                          return (
+                            <tr
+                              key={row.date}
+                              className="border-b border-slate-900 hover:bg-slate-900/40"
+                            >
+                              <td className="py-3.5 px-4 font-bold text-slate-200">
+                                {row.date.split("T")[0]}
+                              </td>
+                              <td className="py-3.5 px-4">
+                                <span
+                                  className={`px-2 py-0.5 rounded text-xs font-semibold border ${
+                                    type === "spike"
+                                      ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                                      : "bg-amber-500/10 text-amber-400 border-amber-500/20"
+                                  }`}
+                                >
+                                  {type === "spike" ? "Spike" : "Drop"}
+                                </span>
+                              </td>
+                              <td className="py-3.5 px-4 text-right font-semibold text-white">
+                                {formatCurrency(row.daily_revenue)}
+                              </td>
+                              <td className="py-3.5 px-4 text-right text-slate-400">
+                                {formatCurrency(row.rolling_mean)}
+                              </td>
+                              <td className="py-3.5 px-4 text-right text-slate-300">
+                                {formatCurrency(deviation)}
+                              </td>
+                              <td className="py-3.5 px-4 text-right">
+                                <span className="px-2 py-0.5 rounded bg-rose-500/10 text-rose-400 border border-rose-500/20 font-bold text-xs">
+                                  {row.z_score.toFixed(2)}
+                                </span>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                  {filteredFlagged.length > 0 && (
+                    <div className="flex items-center justify-between mt-4 pt-4 border-t border-slate-800">
+                      <button
+                        type="button"
+                        disabled={flaggedPage <= 1}
+                        onClick={() => setFlaggedPage((p) => p - 1)}
+                        className="text-xs px-3 py-1.5 rounded-lg border border-slate-700 text-slate-300 disabled:opacity-40 disabled:cursor-not-allowed hover:border-indigo-500 hover:text-white transition-colors"
+                      >
+                        Previous
+                      </button>
+                      <span className="text-xs text-slate-500">
+                        Page {flaggedPage} of {flaggedPageCount}
+                      </span>
+                      <button
+                        type="button"
+                        disabled={flaggedPage >= flaggedPageCount}
+                        onClick={() => setFlaggedPage((p) => p + 1)}
+                        className="text-xs px-3 py-1.5 rounded-lg border border-slate-700 text-slate-300 disabled:opacity-40 disabled:cursor-not-allowed hover:border-indigo-500 hover:text-white transition-colors"
+                      >
+                        Next
+                      </button>
+                    </div>
+                  )}
+                </>
+              )}
             </CardContent>
           </Card>
         </div>

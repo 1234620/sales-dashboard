@@ -68,28 +68,53 @@ def mom_growth(df: pd.DataFrame) -> pd.DataFrame:
 
 def yoy_growth(df: pd.DataFrame) -> pd.DataFrame:
     """
-    KPI 4: Year-over-Year revenue growth.
+    KPI 4: Year-over-Year revenue growth (chart-friendly series).
 
-    Returns DataFrame with columns: month, year, revenue, yoy_growth_pct
+    Compares the latest year in the data to the immediately prior year.
+    Returns DataFrame with columns: month, label, yoy_growth_pct, current_revenue, prior_revenue
     """
+    month_labels = [
+        "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+        "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+    ]
+
     monthly = (
         df.groupby(["year", "month"])["net_revenue"]
         .sum()
         .reset_index()
         .rename(columns={"net_revenue": "revenue"})
-        .sort_values(["year", "month"])
     )
 
-    # Pivot to get years as columns, then compute YoY
-    pivot = monthly.pivot(index="month", columns="year", values="revenue")
-    yoy = pd.DataFrame()
-    for i, year in enumerate(sorted(pivot.columns)):
-        if i > 0:
-            prev_year = sorted(pivot.columns)[i - 1]
-            yoy[f"{year}_vs_{prev_year}"] = (
-                (pivot[year] - pivot[prev_year]) / pivot[prev_year] * 100
-            )
-    return yoy
+    years = sorted(monthly["year"].unique())
+    if len(years) < 2:
+        return pd.DataFrame(
+            columns=["month", "label", "yoy_growth_pct", "current_revenue", "prior_revenue"]
+        )
+
+    current_year = int(years[-1])
+    prior_year = int(years[-2])
+
+    rows = []
+    for month in range(1, 13):
+        curr_row = monthly[(monthly["year"] == current_year) & (monthly["month"] == month)]
+        prior_row = monthly[(monthly["year"] == prior_year) & (monthly["month"] == month)]
+        current_rev = float(curr_row["revenue"].sum()) if not curr_row.empty else 0.0
+        prior_rev = float(prior_row["revenue"].sum()) if not prior_row.empty else 0.0
+
+        if prior_rev > 0:
+            yoy_pct = (current_rev - prior_rev) / prior_rev * 100
+        else:
+            yoy_pct = None
+
+        rows.append({
+            "month": month,
+            "label": month_labels[month - 1],
+            "yoy_growth_pct": yoy_pct,
+            "current_revenue": current_rev,
+            "prior_revenue": prior_rev,
+        })
+
+    return pd.DataFrame(rows)
 
 
 def average_order_value(df: pd.DataFrame) -> float:
@@ -151,16 +176,34 @@ def category_contribution_margin(df: pd.DataFrame) -> pd.DataFrame:
     """
     KPI 9: Contribution margin by product category.
 
+    Revenue is net (post-discount). Margin = net revenue - returns - fulfillment estimate.
     Returns DataFrame with columns: product_category, revenue, margin, margin_pct
     """
-    cats = df.groupby("product_category").agg(
-        revenue=("net_revenue", "sum"),
-        gross=("gross_revenue", "sum") if "gross_revenue" in df.columns else ("net_revenue", "sum"),
-    ).reset_index()
+    cats = (
+        df.groupby("product_category", observed=True)
+        .agg(revenue=("net_revenue", "sum"))
+        .reset_index()
+    )
+    cats["product_category"] = cats["product_category"].astype(str)
 
-    cats["discounts"] = cats["gross"] - cats["revenue"]
+    if "return_flag" in df.columns:
+        returns = (
+            df.loc[df["return_flag"] == True]
+            .groupby("product_category", observed=True)["net_revenue"]
+            .sum()
+        )
+        returns_by_category = {str(k): float(v) for k, v in returns.items()}
+        cats["returns_total"] = cats["product_category"].map(
+            lambda cat: returns_by_category.get(cat, 0.0)
+        )
+    else:
+        cats["returns_total"] = 0.0
+
+    cats["returns_total"] = cats["returns_total"].astype(float)
+    cats["revenue"] = cats["revenue"].astype(float)
+
     cats["fulfillment"] = cats["revenue"] * config.FULFILLMENT_COST_RATE
-    cats["margin"] = cats["revenue"] - cats["discounts"] - cats["fulfillment"]
+    cats["margin"] = cats["revenue"] - cats["returns_total"] - cats["fulfillment"]
     cats["margin_pct"] = (cats["margin"] / cats["revenue"] * 100).fillna(0)
 
     return cats[["product_category", "revenue", "margin", "margin_pct"]].sort_values(
@@ -206,11 +249,31 @@ def top_bottom_skus(df: pd.DataFrame, n: int = 10) -> tuple:
 
 # ── Anomaly & Trend KPIs ───────────────────────────────────────────────────
 
+def _is_festive_calendar_day(dt) -> bool:
+    """True if the date falls in any configured festive window."""
+    if pd.isna(dt):
+        return False
+    ts = pd.Timestamp(dt)
+    for window in config.FESTIVE_WINDOWS.values():
+        if (
+            ts.month == window["month"]
+            and window["day_start"] <= ts.day <= window["day_end"]
+        ):
+            return True
+    return False
+
+
 def anomaly_scores(df: pd.DataFrame) -> pd.DataFrame:
     """
     KPI 14: Anomaly detection via Z-score on daily revenue.
 
-    Returns DataFrame with columns: date, daily_revenue, rolling_mean, z_score, is_anomaly
+    Flags a day when ALL of the following hold:
+    - |z-score| > ZSCORE_THRESHOLD
+    - |daily revenue − rolling mean| >= ANOMALY_MIN_REVENUE_DELTA
+    - not in a festive window (when ANOMALY_EXCLUDE_FESTIVE_DAYS is True)
+
+    Returns DataFrame with columns:
+    date, daily_revenue, rolling_mean, z_score, revenue_deviation, is_anomaly
     """
     daily = (
         df.groupby("date")["net_revenue"]
@@ -230,7 +293,19 @@ def anomaly_scores(df: pd.DataFrame) -> pd.DataFrame:
         (daily["daily_revenue"] - daily["rolling_mean"]) / daily["rolling_std"]
     ).fillna(0)
 
-    daily["is_anomaly"] = daily["z_score"].abs() > config.ZSCORE_THRESHOLD
+    daily["revenue_deviation"] = (
+        daily["daily_revenue"] - daily["rolling_mean"]
+    ).abs()
+
+    zscore_flag = daily["z_score"].abs() > config.ZSCORE_THRESHOLD
+    delta_flag = daily["revenue_deviation"] >= config.ANOMALY_MIN_REVENUE_DELTA
+
+    if config.ANOMALY_EXCLUDE_FESTIVE_DAYS:
+        festive_flag = daily["date"].apply(_is_festive_calendar_day)
+        daily["is_anomaly"] = zscore_flag & delta_flag & ~festive_flag
+    else:
+        daily["is_anomaly"] = zscore_flag & delta_flag
+
     return daily
 
 
@@ -248,9 +323,9 @@ def festive_season_uplift(df: pd.DataFrame) -> pd.DataFrame:
             & (df["date"].dt.day <= window["day_end"])
         )
         festive_rev = df.loc[festive_mask, "net_revenue"].sum()
-        festive_days = festive_mask.sum()
+        festive_days = df.loc[festive_mask, "date"].nunique()
         normal_rev = df.loc[~festive_mask, "net_revenue"].sum()
-        normal_days = (~festive_mask).sum()
+        normal_days = df.loc[~festive_mask, "date"].nunique()
 
         festive_avg = festive_rev / max(festive_days, 1)
         normal_avg = normal_rev / max(normal_days, 1)

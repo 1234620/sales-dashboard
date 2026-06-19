@@ -20,12 +20,36 @@ PROCESSED_DATA_DIR = DATA_DIR / "processed"
 SYNTHETIC_DATA_DIR = DATA_DIR / "synthetic"
 
 SYNTHETIC_DATA_PATH = SYNTHETIC_DATA_DIR / "sales_data.csv"
-PROCESSED_DATA_PATH = PROCESSED_DATA_DIR / "master_sales.csv"
+PROCESSED_DATA_PATH = PROCESSED_DATA_DIR / "sales_clean.csv"
 
 # ── Dataset Parameters ──────────────────────────────────────────────────────
 DATE_START = "2023-01-01"
 DATE_END = "2026-04-30"
-TARGET_ROWS = 82_000  # Approximate number of synthetic transactions
+TARGET_ROWS = 100_000  # Approximate number of synthetic transactions
+
+# ── Synthetic data realism (Phase 5) ────────────────────────────────────────
+PRICE_INFLATION_ANNUAL = 0.05       # 5% YoY compounding from DATE_START
+PRICE_INFLATION_MONTHLY_NOISE = 0.01  # ±1% month-to-month noise on unit prices
+
+REORDER_GAP_MIN_DAYS = 7
+REORDER_GAP_MAX_DAYS = 45
+
+MONTH_END_SPIKE_RANGE = (1.15, 1.25)       # Last 3 calendar days of each month
+QUARTER_END_SPIKE_RANGE = (1.05, 1.10)     # Last 5 days of Mar/Jun/Sep/Dec
+QUARTER_END_MONTHS = (3, 6, 9, 12)
+
+# Offline/online bias added to base CHANNELS weights per region
+REGION_CHANNEL_BIAS = {
+    "West":       {"offline": 0.08, "online": -0.08},
+    "North":      {"offline": 0.06, "online": -0.06},
+    "South":      {"offline": -0.05, "online": 0.05},
+    "East":       {"offline": 0.02, "online": -0.02},
+    "Central":    {"offline": 0.03, "online": -0.03},
+    "North-East": {"offline": 0.04, "online": -0.04},
+}
+
+STOCKOUT_PROBABILITY = 0.02
+HIGH_POPULARITY_THRESHOLD = 0.06   # SKU popularity at or above this may stock out
 
 # ── Product Categories & Price Ranges (INR per carton — B2B distribution) ───
 # Weights derived from FG Stock Report: Beverages (19,988), Bakery (20,218),
@@ -88,9 +112,11 @@ STOCK_REFERENCE = {
 }
 
 # ── Anomaly Detection ───────────────────────────────────────────────────────
-ZSCORE_THRESHOLD = 2.0            # Flag revenue days with |z-score| > 2.0
+ZSCORE_THRESHOLD = 2.5            # Flag revenue days with |z-score| > threshold
 ROLLING_WINDOW_SHORT = 30         # 30-day rolling window
 ROLLING_WINDOW_LONG = 90          # 90-day rolling window
+ANOMALY_MIN_REVENUE_DELTA = 100_000  # Min |actual − rolling mean| in ₹ to flag
+ANOMALY_EXCLUDE_FESTIVE_DAYS = True  # Skip expected festive-season spikes/dips
 
 # ── Forecasting ─────────────────────────────────────────────────────────────
 FORECAST_TRAIN_END = "2026-01-31"       # Train on data up to this date

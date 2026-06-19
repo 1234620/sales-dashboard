@@ -49,7 +49,7 @@ export function DashboardTabs({ activeTab, onTabChange, tabContent }: DashboardT
 
       {TAB_OPTIONS.map((tab) => (
         <TabsContent key={tab.value} value={tab.value} className="space-y-8">
-          {tabContent[tab.value]}
+          {activeTab === tab.value ? tabContent[tab.value] : null}
         </TabsContent>
       ))}
     </Tabs>

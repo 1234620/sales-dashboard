@@ -25,6 +25,9 @@ export const GROUPED_LINE_STYLES = [
 
 export const MAPE_THRESHOLD = 12;
 
+/** Default rows shown in the anomalies table before "View all". */
+export const ANOMALY_TABLE_TOP_N = 15;
+
 export const ALL_REGIONS = [
   "Central",
   "East",

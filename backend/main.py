@@ -4,25 +4,16 @@ import pandas as pd
 import sys
 import os
 import json
-from datetime import datetime
+from contextlib import asynccontextmanager
 from typing import List, Optional
 
 # Add parent dir to path to import src modules
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+import config
 from src.data import load_data, filter_data
 from src import kpis
-from src.forecast import prepare_prophet_data, train_prophet_model, make_forecast
-
-app = FastAPI(title="Sales Dashboard API")
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+from src.model_cache import ProphetModelCache
 
 # Load data once at startup
 try:
@@ -31,6 +22,24 @@ try:
 except Exception as e:
     df = pd.DataFrame()
     print(f"Failed to load data: {e}")
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    if not df.empty:
+        ProphetModelCache.initialize(df)
+    yield
+
+
+app = FastAPI(title="Sales Dashboard API", lifespan=lifespan)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 def safe_serialize(obj):
     """Convert pandas types to native Python types for JSON serialization."""
@@ -83,8 +92,15 @@ def get_kpis(filtered_df: pd.DataFrame = Depends(get_filtered_df)):
     repeat_rate = kpis.repeat_purchase_rate(filtered_df)
     margin = kpis.contribution_margin(filtered_df)
     mom = kpis.mom_growth(filtered_df)
+    yoy = kpis.yoy_growth(filtered_df)
     
     latest_mom = safe_serialize(mom["mom_growth_pct"].iloc[-1]) if len(mom) > 1 else 0
+
+    latest_yoy = 0
+    if not yoy.empty and "yoy_growth_pct" in yoy.columns:
+        valid_yoy = yoy["yoy_growth_pct"].dropna()
+        if len(valid_yoy) > 0:
+            latest_yoy = safe_serialize(valid_yoy.iloc[-1])
     
     return {
         "total_revenue": safe_serialize(rev),
@@ -96,6 +112,7 @@ def get_kpis(filtered_df: pd.DataFrame = Depends(get_filtered_df)):
         "total_transactions": len(filtered_df),
         "unique_customers": filtered_df["customer_id"].nunique() if "customer_id" in filtered_df.columns else 0,
         "mom_growth": latest_mom,
+        "yoy_growth": latest_yoy,
     }
 
 @app.get("/api/revenue-trend")
@@ -107,6 +124,17 @@ def get_revenue_trend(filtered_df: pd.DataFrame = Depends(get_filtered_df)):
     mom_df = kpis.mom_growth(filtered_df)
     return {
         "data": json.loads(mom_df.to_json(date_format='iso', orient='records'))
+    }
+
+@app.get("/api/yoy-growth")
+def get_yoy_growth(filtered_df: pd.DataFrame = Depends(get_filtered_df)):
+    """Get year-over-year revenue growth by month (latest year vs prior year)."""
+    if filtered_df.empty:
+        return {"error": "No data available"}
+
+    yoy_df = kpis.yoy_growth(filtered_df)
+    return {
+        "data": json.loads(yoy_df.to_json(orient="records"))
     }
 
 @app.get("/api/regional")
@@ -149,16 +177,28 @@ def get_returns(filtered_df: pd.DataFrame = Depends(get_filtered_df)):
     return json.loads(returns_df.to_json(orient="records"))
 
 @app.get("/api/anomalies")
-def get_anomalies(filtered_df: pd.DataFrame = Depends(get_filtered_df)):
-    """Get anomaly detection results."""
+def get_anomalies(
+    flagged_only: bool = False,
+    filtered_df: pd.DataFrame = Depends(get_filtered_df),
+):
+    """Get anomaly detection results. Use flagged_only=true for table rows only."""
     if filtered_df.empty:
         return {"error": "No data available"}
     
     anomaly_df = kpis.anomaly_scores(filtered_df)
+    output_df = anomaly_df[anomaly_df["is_anomaly"]] if flagged_only else anomaly_df
+    if flagged_only:
+        output_df = output_df.reindex(
+            output_df["z_score"].abs().sort_values(ascending=False).index
+        )
     return {
-        "data": json.loads(anomaly_df.to_json(date_format='iso', orient="records")),
+        "data": json.loads(output_df.to_json(date_format='iso', orient="records")),
         "total_days": int(len(anomaly_df)),
         "anomalies_count": int(anomaly_df["is_anomaly"].sum()),
+        "zscore_threshold": config.ZSCORE_THRESHOLD,
+        "rolling_window_days": config.ROLLING_WINDOW_SHORT,
+        "min_revenue_delta": config.ANOMALY_MIN_REVENUE_DELTA,
+        "exclude_festive_days": config.ANOMALY_EXCLUDE_FESTIVE_DAYS,
     }
 
 @app.get("/api/channel-mix")
@@ -199,7 +239,7 @@ def get_daily_revenue(group_by: str = None, filtered_df: pd.DataFrame = Depends(
         )
         
     return {
-        "data": json.loads(daily.to_json(date_format='iso', orient='records'))
+        "data": json.loads(daily.to_json(date_format='iso', orient="records"))
     }
 
 @app.get("/api/festive-uplift")
@@ -213,27 +253,43 @@ def get_festive_uplift(filtered_df: pd.DataFrame = Depends(get_filtered_df)):
 
 @app.get("/api/forecast")
 def get_forecast(horizon: int = 6):
-    """Get revenue forecast (uses full dataset for continuity)."""
+    """Get revenue forecast (uses full dataset and cached Prophet model)."""
     try:
         if df.empty:
             return {"error": "No data available"}
-        
-        train_df, validation_df = prepare_prophet_data(df)
-        
-        if len(train_df) < 12:
-            return {"error": "Need at least 12 months of data for reliable forecasting"}
-        
-        model = train_prophet_model(train_df)
-        forecast_df = make_forecast(model, periods=horizon)
-        
-        # Merge actual validation data if present
+
+        if not ProphetModelCache.is_ready():
+            return {"error": ProphetModelCache.error() or "Prophet model is not ready"}
+
+        forecast_df = ProphetModelCache.get_forecast(horizon)
+        validation_df = ProphetModelCache.validation_df()
+
         return {
             "forecast": json.loads(forecast_df.to_json(date_format='iso', orient="records")),
             "validation": json.loads(validation_df.to_json(date_format='iso', orient="records")) if not validation_df.empty else [],
-            "training_periods": len(train_df),
+            "training_periods": ProphetModelCache.training_periods(),
         }
     except Exception as e:
         return {"error": str(e)}
+
+
+@app.post("/api/forecast/refresh")
+def refresh_forecast_model():
+    """Re-train the cached Prophet model from the current full dataset."""
+    if df.empty:
+        return {"error": "No data available", "status": "failed"}
+
+    ProphetModelCache.refresh(df)
+    if ProphetModelCache.is_ready():
+        return {
+            "status": "ok",
+            "training_periods": ProphetModelCache.training_periods(),
+            "message": "Prophet model retrained and cached",
+        }
+    return {
+        "status": "failed",
+        "error": ProphetModelCache.error() or "Model training failed",
+    }
 
 @app.get("/api/health")
 def health():
@@ -242,6 +298,7 @@ def health():
         "status": "healthy",
         "data_loaded": not df.empty,
         "rows": len(df),
+        "prophet_cached": ProphetModelCache.is_ready(),
     }
 
 if __name__ == "__main__":

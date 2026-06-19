@@ -105,7 +105,7 @@ export function ForecastingTab({
   const { data: forecastData, loading, error } = section;
 
   const { chartData, forecastStart, mape } = useMemo(() => {
-    if (!forecastData || forecastData.error || !forecastData.forecast?.length) {
+    if (!forecastData || !forecastData.forecast?.length) {
       return { chartData: [], forecastStart: null, mape: null };
     }
     return enrichForecastData(forecastData);

@@ -15,7 +15,15 @@ export function processTrendData(
   const rawList = dailyRevenue.data;
 
   if (!trendGroupBy) {
-    const sorted = [...rawList].sort((a, b) => a.date.localeCompare(b.date));
+    const dailyTotals = new Map<string, number>();
+    rawList.forEach((d) => {
+      const day = d.date.split("T")[0];
+      dailyTotals.set(day, (dailyTotals.get(day) ?? 0) + d.net_revenue);
+    });
+    const sorted = [...dailyTotals.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([date, net_revenue]) => ({ date, net_revenue }));
+
     return sorted.map((d, index): UngroupedTrendPoint => {
       const start30 = Math.max(0, index - 29);
       const sub30 = sorted.slice(start30, index + 1);
@@ -26,7 +34,7 @@ export function processTrendData(
       const ma90 = sub90.reduce((acc, curr) => acc + curr.net_revenue, 0) / sub90.length;
 
       return {
-        date: d.date.split("T")[0],
+        date: d.date,
         revenue: d.net_revenue,
         ma30,
         ma90,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DashboardTabs } from "@/components/dashboard/DashboardTabs";
 import {
   countActiveFilters,
@@ -54,61 +54,83 @@ export default function Dashboard() {
   const [anomalies, setAnomalies] = useState<AnomaliesSection>(emptySection);
   const [margins, setMargins] = useState<MarginsSection>(emptySection);
 
-  const debouncedFilterParams = useDebounce(toFilterParams(filters), 300);
+  const filterParams = useMemo(
+    () => toFilterParams(filters),
+    [
+      filters.startDate,
+      filters.endDate,
+      filters.selectedRegions,
+      filters.selectedCategories,
+      filters.selectedChannels,
+    ],
+  );
+  const debouncedFilterParams = useDebounce(filterParams, 300);
   const activeFilterCount = useMemo(() => countActiveFilters(filters), [filters]);
+  const dashboardRequestId = useRef(0);
 
-  const loadDashboardData = useCallback(
-    async (signal: AbortSignal) => {
-      const setLoading = () => {
-        setOverview((s) => ({ ...s, loading: true, error: null }));
-        setRegional((s) => ({ ...s, loading: true, error: null }));
-        setProducts((s) => ({ ...s, loading: true, error: null }));
-        setTrends((s) => ({ ...s, loading: true, error: null }));
-        setAnomalies((s) => ({ ...s, loading: true, error: null }));
-        setMargins((s) => ({ ...s, loading: true, error: null }));
-      };
+  const loadDashboardData = useCallback(async () => {
+    const requestId = ++dashboardRequestId.current;
 
-      setLoading();
+    const setLoading = () => {
+      setOverview((s) => ({ ...s, loading: true, error: null }));
+      setRegional((s) => ({ ...s, loading: true, error: null }));
+      setProducts((s) => ({ ...s, loading: true, error: null }));
+      setTrends((s) => ({ ...s, loading: true, error: null }));
+      setAnomalies((s) => ({ ...s, loading: true, error: null }));
+      setMargins((s) => ({ ...s, loading: true, error: null }));
+    };
 
-      const groupBy = trendGroupBy ?? undefined;
+    setLoading();
 
-      const [
-        overviewResult,
-        regionalResult,
-        productsCategoriesResult,
-        productsSkusResult,
-        trendsResult,
-        anomaliesResult,
-        marginsReturnsResult,
-        marginsChannelResult,
-        marginsFestiveResult,
-      ] = await Promise.allSettled([
-        Promise.all([
-          api.fetchKPIs(debouncedFilterParams),
-          api.fetchRevenueTrend(debouncedFilterParams),
-        ]),
-        api.fetchRegional(debouncedFilterParams),
-        api.fetchCategories(debouncedFilterParams),
-        api.fetchTopSKUs(10, debouncedFilterParams),
-        api.fetchDailyRevenue(groupBy, debouncedFilterParams),
-        api.fetchAnomalies(debouncedFilterParams),
-        api.fetchReturns(debouncedFilterParams),
-        api.fetchChannelMix(debouncedFilterParams),
-        api.fetchFestiveUplift(debouncedFilterParams),
-      ]);
+    const groupBy = trendGroupBy ?? undefined;
+    const isStale = () => requestId !== dashboardRequestId.current;
 
-      if (signal.aborted) return;
+    const [
+      kpisResult,
+      trendResult,
+      yoyResult,
+      regionalResult,
+      productsCategoriesResult,
+      productsSkusResult,
+      trendsResult,
+      anomaliesSeriesResult,
+      anomaliesFlaggedResult,
+      marginsReturnsResult,
+      marginsChannelResult,
+      marginsFestiveResult,
+    ] = await Promise.allSettled([
+      api.fetchKPIs(debouncedFilterParams),
+      api.fetchRevenueTrend(debouncedFilterParams),
+      api.fetchYoYGrowth(debouncedFilterParams),
+      api.fetchRegional(debouncedFilterParams),
+      api.fetchCategories(debouncedFilterParams),
+      api.fetchTopSKUs(10, debouncedFilterParams),
+      api.fetchDailyRevenue(groupBy, debouncedFilterParams),
+      api.fetchAnomalies(debouncedFilterParams),
+      api.fetchAnomalies(debouncedFilterParams, { flaggedOnly: true }),
+      api.fetchReturns(debouncedFilterParams),
+      api.fetchChannelMix(debouncedFilterParams),
+      api.fetchFestiveUplift(debouncedFilterParams),
+    ]);
 
-      if (overviewResult.status === "fulfilled") {
-        const [kpis, trend] = overviewResult.value;
-        setOverview({ data: { kpis, trend }, loading: false, error: null });
-      } else {
-        setOverview((s) => ({
-          ...s,
-          loading: false,
-          error: getErrorMessage(overviewResult.reason),
-        }));
-      }
+    if (isStale()) return;
+
+    const kpis = kpisResult.status === "fulfilled" ? kpisResult.value : null;
+    const trend = trendResult.status === "fulfilled" ? trendResult.value : null;
+    const yoy =
+      yoyResult.status === "fulfilled" ? yoyResult.value : { data: [] };
+
+    if (kpis && trend) {
+      setOverview({ data: { kpis, trend, yoy }, loading: false, error: null });
+    } else {
+      const err =
+        kpisResult.status === "rejected"
+          ? getErrorMessage(kpisResult.reason)
+          : trendResult.status === "rejected"
+            ? getErrorMessage(trendResult.reason)
+            : "Failed to load overview data";
+      setOverview((s) => ({ ...s, loading: false, error: err }));
+    }
 
       if (regionalResult.status === "fulfilled") {
         setRegional({ data: regionalResult.value, loading: false, error: null });
@@ -153,14 +175,28 @@ export default function Dashboard() {
         }));
       }
 
-      if (anomaliesResult.status === "fulfilled") {
-        setAnomalies({ data: anomaliesResult.value, loading: false, error: null });
-      } else {
-        setAnomalies((s) => ({
-          ...s,
+      if (
+        anomaliesSeriesResult.status === "fulfilled" &&
+        anomaliesFlaggedResult.status === "fulfilled"
+      ) {
+        setAnomalies({
+          data: {
+            series: anomaliesSeriesResult.value,
+            flagged: anomaliesFlaggedResult.value,
+          },
           loading: false,
-          error: getErrorMessage(anomaliesResult.reason),
-        }));
+          error: null,
+        });
+      } else {
+        const err =
+          anomaliesSeriesResult.status === "rejected"
+            ? getErrorMessage(anomaliesSeriesResult.reason)
+            : getErrorMessage(
+                anomaliesFlaggedResult.status === "rejected"
+                  ? anomaliesFlaggedResult.reason
+                  : "Failed to load anomalies",
+              );
+        setAnomalies((s) => ({ ...s, loading: false, error: err }));
       }
 
       const returnsOk = marginsReturnsResult.status === "fulfilled";
@@ -196,47 +232,33 @@ export default function Dashboard() {
               );
         setMargins((s) => ({ ...s, loading: false, error: err }));
       }
-    },
-    [debouncedFilterParams, trendGroupBy],
-  );
+  }, [debouncedFilterParams, trendGroupBy]);
 
-  const loadForecastData = useCallback(async (signal: AbortSignal) => {
+  const forecastRequestId = useRef(0);
+
+  const loadForecastData = useCallback(async () => {
+    const requestId = ++forecastRequestId.current;
     setForecast((s) => ({ ...s, loading: true, error: null }));
     try {
       const res = await api.fetchForecast(forecastHorizon);
-      if (signal.aborted) return;
-      if (res.error) {
+      if (requestId !== forecastRequestId.current) return;
+      if ("error" in res) {
         setForecast({ data: null, loading: false, error: res.error });
       } else {
         setForecast({ data: res, loading: false, error: null });
       }
     } catch (err) {
-      if (!signal.aborted) {
-        setForecast({ data: null, loading: false, error: getErrorMessage(err) });
-      }
+      if (requestId !== forecastRequestId.current) return;
+      setForecast({ data: null, loading: false, error: getErrorMessage(err) });
     }
   }, [forecastHorizon]);
 
   useEffect(() => {
-    const controller = new AbortController();
-    const timer = window.setTimeout(() => {
-      void loadDashboardData(controller.signal);
-    }, 0);
-    return () => {
-      controller.abort();
-      window.clearTimeout(timer);
-    };
+    void loadDashboardData();
   }, [loadDashboardData]);
 
   useEffect(() => {
-    const controller = new AbortController();
-    const timer = window.setTimeout(() => {
-      void loadForecastData(controller.signal);
-    }, 0);
-    return () => {
-      controller.abort();
-      window.clearTimeout(timer);
-    };
+    void loadForecastData();
   }, [loadForecastData]);
 
   const processedTrendData = useMemo(

@@ -11,7 +11,10 @@ import { formatCurrency, formatNumber, formatPercent } from "@/lib/format";
 import {
   Area,
   AreaChart,
+  Bar,
+  BarChart,
   CartesianGrid,
+  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -30,7 +33,10 @@ export function OverviewTab({ section }: OverviewTabProps) {
   const { data, loading, error } = section;
   const kpis = data?.kpis;
   const trendData = data?.trend;
+  const yoyData = data?.yoy;
   const monthCount = trendData?.data.length ?? 0;
+  const yoyChartData =
+    yoyData?.data.filter((row) => row.yoy_growth_pct !== null) ?? [];
 
   return (
     <TabSection loading={loading} error={error} hasData={!!data}>
@@ -41,10 +47,18 @@ export function OverviewTab({ section }: OverviewTabProps) {
             value={formatCurrency(kpis?.total_revenue)}
             change={
               kpis?.mom_growth !== undefined
-                ? `${Math.abs(kpis.mom_growth).toFixed(1)}% MoM`
+                ? `${Math.abs(kpis.mom_growth).toFixed(1)}% MoM${
+                    kpis.yoy_growth !== undefined
+                      ? ` · ${Math.abs(kpis.yoy_growth).toFixed(1)}% YoY`
+                      : ""
+                  }`
                 : null
             }
-            changeType={kpis && kpis.mom_growth >= 0 ? "positive" : "negative"}
+            changeType={
+              kpis && kpis.mom_growth >= 0 && (kpis.yoy_growth ?? 0) >= 0
+                ? "positive"
+                : "negative"
+            }
             color="from-indigo-500 to-indigo-600"
             delay={0}
           />
@@ -170,6 +184,53 @@ export function OverviewTab({ section }: OverviewTabProps) {
                     fill="url(#revenueGlow)"
                   />
                 </AreaChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        )}
+
+        {yoyChartData.length > 0 && (
+          <Card className="bg-slate-900/40 border-slate-800">
+            <CardHeader>
+              <CardTitle className="text-xl font-bold text-white">
+                Year-over-Year Revenue Growth
+              </CardTitle>
+              <CardDescription className="text-slate-400">
+                Monthly revenue change vs the prior year (latest year in filter range)
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={280}>
+                <BarChart
+                  data={yoyChartData}
+                  margin={{ top: 8, right: 16, left: 8, bottom: 8 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+                  <XAxis
+                    dataKey="label"
+                    stroke="#64748b"
+                    tick={CHART_AXIS_TICK}
+                  />
+                  <YAxis
+                    stroke="#64748b"
+                    tick={CHART_AXIS_TICK}
+                    tickFormatter={(val: number) => `${val.toFixed(0)}%`}
+                    width={48}
+                    label={{
+                      value: "YoY %",
+                      angle: -90,
+                      position: "insideLeft",
+                      fill: "#94a3b8",
+                      style: { textAnchor: "middle", fontSize: 11 },
+                    }}
+                  />
+                  <ReferenceLine y={0} stroke="#64748b" strokeDasharray="3 3" />
+                  <Tooltip
+                    contentStyle={CHART_TOOLTIP_STYLE}
+                    formatter={(val: number) => [`${val.toFixed(1)}%`, "YoY Growth"]}
+                  />
+                  <Bar dataKey="yoy_growth_pct" fill="#6366F1" name="YoY Growth" radius={[4, 4, 0, 0]} />
+                </BarChart>
               </ResponsiveContainer>
             </CardContent>
           </Card>

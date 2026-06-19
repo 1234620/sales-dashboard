@@ -4,8 +4,10 @@
 
 *An end-to-end interactive dashboard replacing manual Excel reporting, built for Parasnath Distribution Group.*
 
-![last commit](https://img.shields.io/github/last-commit/1234620/sales-dashboard?style=flat-square&color=blue)
-![top language](https://img.shields.io/github/languages/top/1234620/sales-dashboard?style=flat-square&color=blue)
+![last commit](https://img.shields.io/github/last-commit/1234620/sales-dashboard?style=flat-square&color=880d1e)
+![top language](https://img.shields.io/github/languages/top/1234620/sales-dashboard?style=flat-square&color=880d1e)
+![commit activity](https://img.shields.io/github/commit-activity/m/1234620/sales-dashboard?style=flat-square&color=dd2d4a)
+![repo size](https://img.shields.io/github/repo-size/1234620/sales-dashboard?style=flat-square&color=f49cbb)
 
 *Built with the tools and technologies:*
 
@@ -14,13 +16,17 @@
 ![Next.js](https://img.shields.io/badge/Next.js-000000?style=for-the-badge&logo=nextdotjs&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)
+![Recharts](https://img.shields.io/badge/Recharts-880d1e?style=for-the-badge&logo=react&logoColor=white)
+![Prophet](https://img.shields.io/badge/Prophet-forecasting-dd2d4a?style=for-the-badge)
+![pytest](https://img.shields.io/badge/pytest-tested-f49cbb?style=for-the-badge&logo=pytest&logoColor=black)
 
 </div>
 
 ---
 
 <div align="center">
-  <img src="assets/dashboard.png" alt="Sales Dashboard Screenshot" width="800">
+  <img src="assets/dashboard.png" alt="Regional revenue distribution — live dashboard screenshot" width="800">
+  <p><em>Regional Revenue Distribution tab — Next.js dashboard (live UI screenshot)</em></p>
 </div>
 
 ---
@@ -47,6 +53,7 @@ Built as part of the Technical Internship Program 2026 (MPSTME NMIMS Mumbai × P
 
 ### Core Functionality
 
+- **Landing page:** Branded hero with floating dashboard preview and CTA to open the analytics app.
 - **KPI Overview:** 8 metric cards (Revenue, Margin, AOV, Velocity, Discounts, Repeat Rate, Transactions, Unique Customers) and monthly revenue area chart.
 - **Regional Analysis:** Donut chart of revenue by region and interactive territory detail lists.
 - **Product Performance:** Category margins, top 10 SKUs, and bottom 10 SKUs charts.
@@ -91,7 +98,8 @@ python3 backend/main.py
 cd frontend
 npm install          # first time only
 npm run dev
-# Open http://localhost:3000  ← use this URL, not Streamlit (port 8501)
+# Open http://localhost:3000          ← landing page
+# Open http://localhost:3000/dashboard ← dashboard directly
 ```
 
 **You need both processes running:** FastAPI on `:8000` and Next.js on `:3000`. The TypeScript frontend fetches all data from the Python API.
@@ -105,7 +113,7 @@ sales-dashboard/
 ├── backend/
 │   └── main.py             # FastAPI API — KPIs, charts, forecast, anomalies
 ├── frontend/               # ★ OFFICIAL DASHBOARD UI (Next.js 16 + TypeScript)
-│   ├── app/                # App Router pages (entry: app/page.tsx)
+│   ├── app/                # App Router — landing (`page.tsx`) + dashboard (`dashboard/page.tsx`)
 │   └── src/
 │       ├── components/dashboard/
 │       │   ├── tabs/       # One component per dashboard tab (Overview, Regional, …)
@@ -167,7 +175,8 @@ Tests cover: KPI unit tests (`test_kpis.py`) and API integration tests (`test_ap
 - Python data ingestion, cleaning, and quality pipeline (`src/data.py`, `src/process_data.py`)
 - Phase 5 synthetic data realism: price inflation, reorder cadence, period-end spikes, region×channel bias, stockouts
 - 16 KPI computations and Prophet forecasting
-- Premium dark-theme **Next.js / TypeScript** dashboard with per-tab components (`frontend/src/components/dashboard/tabs/`)
+- Premium light-theme **Next.js / TypeScript** dashboard with landing page and maroon brand palette
+- Phase 6: CSV/PDF export, region→state drill-down, compare-to-prior-period, insights panel, category heatmap
 - Phase 2 chart readability fixes (Recharts: axis labels, confidence bands, SKU tooltips, dynamic MAPE, etc.)
 - Phase 4 backend: Prophet model cache, YoY growth API, festive uplift & margin KPI fixes, anomaly `flagged_only` param
 - Anomalies tab: flagged table pagination (10 rows/page, Previous/Next)
@@ -177,7 +186,6 @@ Tests cover: KPI unit tests (`test_kpis.py`) and API integration tests (`test_ap
 ### Next Steps
 - Implement user authentication for client portals
 - Connect live ERP database to substitute synthetic data
-- Generate PDF/CSV data exports from the frontend
 
 ---
 

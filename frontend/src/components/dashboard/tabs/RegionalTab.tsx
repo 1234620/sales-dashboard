@@ -8,10 +8,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import * as api from "@/lib/api";
 import type { FilterParams, RegionalSection, StateData } from "@/lib/types";
-import { CHART_TOOLTIP_STYLE } from "@/lib/chart-utils";
+import { CHART_LEGEND_STYLE, CHART_TOOLTIP_STYLE } from "@/lib/chart-utils";
 import { formatCurrency, formatPercent } from "@/lib/format";
 import { useCallback, useState } from "react";
-import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
+import { Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 
 interface RegionalTabProps {
   section: RegionalSection;
@@ -106,14 +106,14 @@ export function RegionalTab({
                 />
               </CardHeader>
               <CardContent className="flex items-center justify-center">
-                <ResponsiveContainer width="100%" height={340}>
-                  <PieChart margin={{ top: 8, right: 24, bottom: 8, left: 24 }}>
+                <ResponsiveContainer width="100%" height={360}>
+                  <PieChart margin={{ top: 8, right: 24, bottom: 36, left: 24 }}>
                     <Pie
                       data={regionalData}
                       dataKey="revenue"
                       nameKey="region"
                       cx="50%"
-                      cy="50%"
+                      cy="46%"
                       outerRadius={95}
                       innerRadius={58}
                       paddingAngle={2}
@@ -143,6 +143,12 @@ export function RegionalTab({
                         `${formatCurrency(val)} (${formatPercent(item.payload.share_pct)})`,
                         item.payload.region,
                       ]}
+                    />
+                    <Legend
+                      wrapperStyle={CHART_LEGEND_STYLE}
+                      iconType="circle"
+                      verticalAlign="bottom"
+                      align="center"
                     />
                   </PieChart>
                 </ResponsiveContainer>

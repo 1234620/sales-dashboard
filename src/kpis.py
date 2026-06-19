@@ -172,6 +172,58 @@ def regional_revenue_share(df: pd.DataFrame) -> pd.DataFrame:
     return regional.sort_values("revenue", ascending=False)
 
 
+def state_revenue_share(df: pd.DataFrame, region: str) -> pd.DataFrame:
+    """
+    Revenue share by state within a region.
+
+    Returns DataFrame with columns: state, revenue, share_pct
+    """
+    empty = pd.DataFrame(columns=["state", "revenue", "share_pct"])
+    if "state" not in df.columns or "region" not in df.columns:
+        return empty
+
+    subset = df[df["region"] == region]
+    if subset.empty:
+        return empty
+
+    total = subset["net_revenue"].sum()
+    states = (
+        subset.groupby("state")["net_revenue"]
+        .sum()
+        .reset_index()
+        .rename(columns={"net_revenue": "revenue"})
+    )
+    states["share_pct"] = (states["revenue"] / total * 100) if total > 0 else 0
+    return states.sort_values("revenue", ascending=False)
+
+
+def region_category_heatmap(df: pd.DataFrame) -> dict:
+    """
+    Region × category revenue matrix for heatmap visualization.
+
+    Returns dict with keys: regions, categories, values (2D list)
+    """
+    if df.empty or "region" not in df.columns or "product_category" not in df.columns:
+        return {"regions": [], "categories": [], "values": []}
+
+    pivot = (
+        df.pivot_table(
+            index="region",
+            columns="product_category",
+            values="net_revenue",
+            aggfunc="sum",
+            fill_value=0,
+            observed=True,
+        )
+        .sort_index()
+    )
+    return {
+        "regions": pivot.index.tolist(),
+        "categories": pivot.columns.tolist(),
+        "values": pivot.values.tolist(),
+    }
+
+
 def category_contribution_margin(df: pd.DataFrame) -> pd.DataFrame:
     """
     KPI 9: Contribution margin by product category.

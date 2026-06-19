@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DashboardTabs } from "@/components/dashboard/DashboardTabs";
+import { InsightsPanel } from "@/components/dashboard/InsightsPanel";
 import {
   countActiveFilters,
   FilterPanel,
@@ -17,6 +18,10 @@ import { RegionalTab } from "@/components/dashboard/tabs/RegionalTab";
 import { TrendsTab } from "@/components/dashboard/tabs/TrendsTab";
 import { useDebounce } from "@/hooks/useDebounce";
 import * as api from "@/lib/api";
+import { computeMape, normalizeDateKey } from "@/lib/chart-utils";
+import { priorPeriod } from "@/lib/date-ranges";
+import { exportElementToPdf, pdfFilename } from "@/lib/export-pdf";
+import { buildInsights } from "@/lib/insights";
 import { processTrendData } from "@/lib/trend-data";
 import type {
   AnomaliesSection,
@@ -54,22 +59,28 @@ export default function Dashboard() {
   const [anomalies, setAnomalies] = useState<AnomaliesSection>(emptySection);
   const [margins, setMargins] = useState<MarginsSection>(emptySection);
 
-  const filterParams = useMemo(
-    () => toFilterParams(filters),
-    [
-      filters.startDate,
-      filters.endDate,
-      filters.selectedRegions,
-      filters.selectedCategories,
-      filters.selectedChannels,
-    ],
-  );
+  const filterParams = useMemo(() => toFilterParams(filters), [filters]);
   const debouncedFilterParams = useDebounce(filterParams, 300);
+  const priorFilterParams = useMemo(() => {
+    if (!filters.compareToPrior) return null;
+    const prior = priorPeriod({ startDate: filters.startDate, endDate: filters.endDate });
+    return {
+      ...filterParams,
+      startDate: prior.startDate,
+      endDate: prior.endDate,
+    };
+  }, [filters.compareToPrior, filters.startDate, filters.endDate, filterParams]);
+  const debouncedPriorFilterParams = useDebounce(priorFilterParams, 300);
   const activeFilterCount = useMemo(() => countActiveFilters(filters), [filters]);
   const dashboardRequestId = useRef(0);
+  const tabExportRef = useRef<HTMLDivElement>(null);
+  const [pdfExporting, setPdfExporting] = useState(false);
 
   const loadDashboardData = useCallback(async () => {
     const requestId = ++dashboardRequestId.current;
+    await Promise.resolve();
+
+    if (requestId !== dashboardRequestId.current) return;
 
     const setLoading = () => {
       setOverview((s) => ({ ...s, loading: true, error: null }));
@@ -92,12 +103,14 @@ export default function Dashboard() {
       regionalResult,
       productsCategoriesResult,
       productsSkusResult,
+      productsHeatmapResult,
       trendsResult,
       anomaliesSeriesResult,
       anomaliesFlaggedResult,
       marginsReturnsResult,
       marginsChannelResult,
       marginsFestiveResult,
+      compareKpisResult,
     ] = await Promise.allSettled([
       api.fetchKPIs(debouncedFilterParams),
       api.fetchRevenueTrend(debouncedFilterParams),
@@ -105,12 +118,16 @@ export default function Dashboard() {
       api.fetchRegional(debouncedFilterParams),
       api.fetchCategories(debouncedFilterParams),
       api.fetchTopSKUs(10, debouncedFilterParams),
+      api.fetchHeatmap(debouncedFilterParams),
       api.fetchDailyRevenue(groupBy, debouncedFilterParams),
       api.fetchAnomalies(debouncedFilterParams),
       api.fetchAnomalies(debouncedFilterParams, { flaggedOnly: true }),
       api.fetchReturns(debouncedFilterParams),
       api.fetchChannelMix(debouncedFilterParams),
       api.fetchFestiveUplift(debouncedFilterParams),
+      debouncedPriorFilterParams
+        ? api.fetchKPIs(debouncedPriorFilterParams)
+        : Promise.resolve(null),
     ]);
 
     if (isStale()) return;
@@ -119,9 +136,15 @@ export default function Dashboard() {
     const trend = trendResult.status === "fulfilled" ? trendResult.value : null;
     const yoy =
       yoyResult.status === "fulfilled" ? yoyResult.value : { data: [] };
+    const compareKpis =
+      compareKpisResult.status === "fulfilled" ? compareKpisResult.value : null;
 
     if (kpis && trend) {
-      setOverview({ data: { kpis, trend, yoy }, loading: false, error: null });
+      setOverview({
+        data: { kpis, trend, yoy, compareKpis },
+        loading: false,
+        error: null,
+      });
     } else {
       const err =
         kpisResult.status === "rejected"
@@ -144,11 +167,13 @@ export default function Dashboard() {
 
       const categoriesOk = productsCategoriesResult.status === "fulfilled";
       const skusOk = productsSkusResult.status === "fulfilled";
+      const heatmapOk = productsHeatmapResult.status === "fulfilled";
       if (categoriesOk && skusOk) {
         setProducts({
           data: {
             categories: productsCategoriesResult.value,
             skus: productsSkusResult.value,
+            heatmap: heatmapOk ? productsHeatmapResult.value : null,
           },
           loading: false,
           error: null,
@@ -232,12 +257,39 @@ export default function Dashboard() {
               );
         setMargins((s) => ({ ...s, loading: false, error: err }));
       }
-  }, [debouncedFilterParams, trendGroupBy]);
+  }, [debouncedFilterParams, debouncedPriorFilterParams, trendGroupBy]);
+
+  const forecastMape = useMemo(() => {
+    if (!forecast.data?.validation?.length || !forecast.data.forecast?.length) {
+      return null;
+    }
+    const forecastByDs = new Map(
+      forecast.data.forecast.map((f) => [normalizeDateKey(f.ds), f.yhat]),
+    );
+    const mapePoints = forecast.data.validation.map((v) => ({
+      actual: v.y,
+      predicted: forecastByDs.get(normalizeDateKey(v.ds)) ?? 0,
+    }));
+    return computeMape(mapePoints);
+  }, [forecast.data]);
+
+  const insights = useMemo(
+    () =>
+      buildInsights({
+        overview,
+        regional,
+        anomalies,
+        forecastMape,
+      }),
+    [overview, regional, anomalies, forecastMape],
+  );
 
   const forecastRequestId = useRef(0);
 
   const loadForecastData = useCallback(async () => {
     const requestId = ++forecastRequestId.current;
+    await Promise.resolve();
+    if (requestId !== forecastRequestId.current) return;
     setForecast((s) => ({ ...s, loading: true, error: null }));
     try {
       const res = await api.fetchForecast(forecastHorizon);
@@ -254,11 +306,17 @@ export default function Dashboard() {
   }, [forecastHorizon]);
 
   useEffect(() => {
-    void loadDashboardData();
+    const handle = window.setTimeout(() => {
+      void loadDashboardData();
+    }, 0);
+    return () => window.clearTimeout(handle);
   }, [loadDashboardData]);
 
   useEffect(() => {
-    void loadForecastData();
+    const handle = window.setTimeout(() => {
+      void loadForecastData();
+    }, 0);
+    return () => window.clearTimeout(handle);
   }, [loadForecastData]);
 
   const processedTrendData = useMemo(
@@ -294,6 +352,41 @@ export default function Dashboard() {
   };
 
   const resetFilters = () => setFilters(getDefaultFilters());
+
+  const handleExportPdf = async () => {
+    const el = tabExportRef.current;
+    if (!el) return;
+    setPdfExporting(true);
+    try {
+      await exportElementToPdf(el, pdfFilename(activeTab));
+    } finally {
+      setPdfExporting(false);
+    }
+  };
+
+  const filterDashboardToRegion = (region: string) => {
+    setFilters((prev) => ({
+      ...prev,
+      selectedRegions: prev.selectedRegions.includes(region)
+        ? prev.selectedRegions
+        : [...prev.selectedRegions, region],
+    }));
+  };
+
+  const sectionLoading =
+    activeTab === "overview"
+      ? overview.loading
+      : activeTab === "regional"
+        ? regional.loading
+        : activeTab === "products"
+          ? products.loading
+          : activeTab === "trends"
+            ? trends.loading
+            : activeTab === "forecasting"
+              ? forecast.loading
+              : activeTab === "anomalies"
+                ? anomalies.loading
+                : margins.loading;
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-slate-900 via-slate-950 to-indigo-950/40">
@@ -331,15 +424,29 @@ export default function Dashboard() {
           onToggleRegion={toggleRegion}
           onToggleCategory={toggleCategory}
           onToggleChannel={toggleChannel}
+          onCompareToPriorChange={(enabled) =>
+            setFilters((prev) => ({ ...prev, compareToPrior: enabled }))
+          }
+          onExportPdf={() => void handleExportPdf()}
+          exportPdfDisabled={pdfExporting || sectionLoading}
           onReset={resetFilters}
         />
+
+        <InsightsPanel insights={insights} />
 
         <DashboardTabs
           activeTab={activeTab}
           onTabChange={setActiveTab}
+          exportRef={tabExportRef}
           tabContent={{
             overview: <OverviewTab section={overview} />,
-            regional: <RegionalTab section={regional} />,
+            regional: (
+              <RegionalTab
+                section={regional}
+                filterParams={filterParams}
+                onFilterDashboardToRegion={filterDashboardToRegion}
+              />
+            ),
             products: <ProductsTab section={products} />,
             trends: (
               <TrendsTab

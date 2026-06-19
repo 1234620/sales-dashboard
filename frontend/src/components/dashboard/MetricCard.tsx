@@ -4,6 +4,7 @@ interface MetricCardProps {
   title: string;
   value: string | number;
   change?: string | null;
+  compareDelta?: string | null;
   changeType?: "positive" | "negative" | "neutral";
   color: string;
   delay?: number;
@@ -13,6 +14,7 @@ export function MetricCard({
   title,
   value,
   change,
+  compareDelta,
   changeType = "neutral",
   color,
   delay = 0,
@@ -51,6 +53,9 @@ export function MetricCard({
               >
                 {!isNeutral && (isPositive ? "↑" : "↓")} {change}
               </p>
+            )}
+            {compareDelta && (
+              <p className="text-xs mt-1 font-semibold text-indigo-300">{compareDelta}</p>
             )}
           </div>
           <div

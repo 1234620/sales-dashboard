@@ -1,6 +1,7 @@
 "use client";
 
 import { MAPE_THRESHOLD } from "@/components/dashboard/constants";
+import { ExportCsvButton } from "@/components/dashboard/ExportCsvButton";
 import { TabSection } from "@/components/dashboard/MetricCard";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import type { ForecastData, ForecastSection } from "@/lib/types";
@@ -113,6 +114,27 @@ export function ForecastingTab({
 
   const mapePasses = mape !== null && mape <= MAPE_THRESHOLD;
 
+  const forecastExportRows = useMemo(() => {
+    if (!forecastData) return [];
+    const forecastRows = forecastData.forecast.map((row) => ({
+      section: "forecast",
+      ds: row.ds,
+      yhat: row.yhat,
+      yhat_lower: row.yhat_lower,
+      yhat_upper: row.yhat_upper,
+      y: row.y ?? "",
+    }));
+    const validationRows = (forecastData.validation ?? []).map((row) => ({
+      section: "validation",
+      ds: row.ds,
+      yhat: "",
+      yhat_lower: "",
+      yhat_upper: "",
+      y: row.y,
+    }));
+    return [...forecastRows, ...validationRows];
+  }, [forecastData]);
+
   return (
     <TabSection loading={loading} error={error} hasData={!!forecastData}>
       <Card className="bg-slate-900/40 border-slate-800">
@@ -125,19 +147,34 @@ export function ForecastingTab({
               Prophet model forecasting monthly revenue with Indian holiday modifiers
             </CardDescription>
           </div>
-          <div className="flex items-center gap-4 bg-slate-800/40 p-4 rounded-xl border border-slate-700/60">
-            <div className="space-y-1">
-              <p className="text-xs font-bold text-slate-400">
-                Forecast Horizon: {forecastHorizon} Months
-              </p>
-              <input
-                type="range"
-                min="1"
-                max="12"
-                value={forecastHorizon}
-                onChange={(e) => onForecastHorizonChange(parseInt(e.target.value, 10))}
-                className="w-40 accent-indigo-500"
-              />
+          <div className="flex items-center gap-4 flex-wrap justify-end">
+            <ExportCsvButton
+              tab="forecasting"
+              rows={forecastExportRows}
+              disabled={loading}
+              columns={[
+                { key: "section", header: "section" },
+                { key: "ds", header: "ds" },
+                { key: "yhat", header: "yhat" },
+                { key: "yhat_lower", header: "yhat_lower" },
+                { key: "yhat_upper", header: "yhat_upper" },
+                { key: "y", header: "y" },
+              ]}
+            />
+            <div className="flex items-center gap-4 bg-slate-800/40 p-4 rounded-xl border border-slate-700/60">
+              <div className="space-y-1">
+                <p className="text-xs font-bold text-slate-400">
+                  Forecast Horizon: {forecastHorizon} Months
+                </p>
+                <input
+                  type="range"
+                  min="1"
+                  max="12"
+                  value={forecastHorizon}
+                  onChange={(e) => onForecastHorizonChange(parseInt(e.target.value, 10))}
+                  className="w-40 accent-indigo-500"
+                />
+              </div>
             </div>
           </div>
         </CardHeader>

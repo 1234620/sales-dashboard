@@ -1,6 +1,8 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { MetricCard, TabSection } from "@/components/dashboard/MetricCard";
 import type { OverviewSection } from "@/lib/types";
+import { pctChange } from "@/lib/date-ranges";
+import { downloadCsv, exportFilename } from "@/lib/export-csv";
 import {
   CHART_AXIS_TICK,
   CHART_TOOLTIP_STYLE,
@@ -8,6 +10,7 @@ import {
   formatYearMonth,
 } from "@/lib/chart-utils";
 import { formatCurrency, formatNumber, formatPercent } from "@/lib/format";
+import { Button } from "@/components/ui/button";
 import {
   Area,
   AreaChart,
@@ -29,11 +32,48 @@ function currencyTick(value: number): string {
   return formatCurrency(value);
 }
 
+function compareLabel(current: number | undefined, prior: number | undefined): string | null {
+  if (current === undefined || prior === undefined) return null;
+  const pct = pctChange(current, prior);
+  if (pct === null) return null;
+  const sign = pct >= 0 ? "+" : "";
+  return `${sign}${pct.toFixed(1)}% vs prior period`;
+}
+
+function exportOverviewCsv(
+  kpis: NonNullable<OverviewSection["data"]>["kpis"],
+  trend: NonNullable<OverviewSection["data"]>["trend"],
+): void {
+  const lines: string[] = ["section,key,value1,value2,value3"];
+  const kpiEntries: [string, number][] = [
+    ["total_revenue", kpis.total_revenue],
+    ["average_order_value", kpis.average_order_value],
+    ["discount_impact_rate", kpis.discount_impact_rate],
+    ["sales_velocity", kpis.sales_velocity],
+    ["repeat_purchase_rate", kpis.repeat_purchase_rate],
+    ["contribution_margin", kpis.contribution_margin],
+    ["total_transactions", kpis.total_transactions],
+    ["unique_customers", kpis.unique_customers],
+    ["mom_growth", kpis.mom_growth],
+    ["yoy_growth", kpis.yoy_growth],
+  ];
+  for (const [key, value] of kpiEntries) {
+    lines.push(`KPI,${key},${value},,`);
+  }
+  for (const row of trend.data) {
+    lines.push(
+      `TREND,${row.year_month},${row.revenue},${row.mom_growth_pct ?? ""},`,
+    );
+  }
+  downloadCsv(exportFilename("overview"), lines.join("\n"));
+}
+
 export function OverviewTab({ section }: OverviewTabProps) {
   const { data, loading, error } = section;
   const kpis = data?.kpis;
   const trendData = data?.trend;
   const yoyData = data?.yoy;
+  const compareKpis = data?.compareKpis;
   const monthCount = trendData?.data.length ?? 0;
   const yoyChartData =
     yoyData?.data.filter((row) => row.yoy_growth_pct !== null) ?? [];
@@ -54,6 +94,7 @@ export function OverviewTab({ section }: OverviewTabProps) {
                   }`
                 : null
             }
+            compareDelta={compareLabel(kpis?.total_revenue, compareKpis?.total_revenue)}
             changeType={
               kpis && kpis.mom_growth >= 0 && (kpis.yoy_growth ?? 0) >= 0
                 ? "positive"
@@ -70,6 +111,10 @@ export function OverviewTab({ section }: OverviewTabProps) {
                 ? `${((kpis.contribution_margin / kpis.total_revenue) * 100).toFixed(1)}% of Revenue`
                 : null
             }
+            compareDelta={compareLabel(
+              kpis?.contribution_margin,
+              compareKpis?.contribution_margin,
+            )}
             changeType="positive"
             color="from-emerald-500 to-emerald-600"
             delay={100}
@@ -78,6 +123,10 @@ export function OverviewTab({ section }: OverviewTabProps) {
             title="Avg Order Value"
             value={formatCurrency(kpis?.average_order_value)}
             change="Per transaction"
+            compareDelta={compareLabel(
+              kpis?.average_order_value,
+              compareKpis?.average_order_value,
+            )}
             changeType="neutral"
             color="from-cyan-500 to-cyan-600"
             delay={200}
@@ -86,6 +135,7 @@ export function OverviewTab({ section }: OverviewTabProps) {
             title="Sales Velocity"
             value={`${formatCurrency(kpis?.sales_velocity)} / day`}
             change="Revenue rate"
+            compareDelta={compareLabel(kpis?.sales_velocity, compareKpis?.sales_velocity)}
             changeType="neutral"
             color="from-orange-500 to-orange-600"
             delay={300}
@@ -97,6 +147,10 @@ export function OverviewTab({ section }: OverviewTabProps) {
             title="Discount Impact"
             value={formatPercent((kpis?.discount_impact_rate ?? 0) * 100)}
             change="Weighted avg"
+            compareDelta={compareLabel(
+              kpis?.discount_impact_rate,
+              compareKpis?.discount_impact_rate,
+            )}
             changeType="negative"
             color="from-rose-500 to-rose-600"
             delay={400}
@@ -105,6 +159,10 @@ export function OverviewTab({ section }: OverviewTabProps) {
             title="Repeat Purchase Rate"
             value={formatPercent(kpis?.repeat_purchase_rate)}
             change="Outlet retention"
+            compareDelta={compareLabel(
+              kpis?.repeat_purchase_rate,
+              compareKpis?.repeat_purchase_rate,
+            )}
             changeType="positive"
             color="from-purple-500 to-purple-600"
             delay={500}
@@ -113,6 +171,10 @@ export function OverviewTab({ section }: OverviewTabProps) {
             title="Total Transactions"
             value={formatNumber(kpis?.total_transactions)}
             change="Orders fulfilled"
+            compareDelta={compareLabel(
+              kpis?.total_transactions,
+              compareKpis?.total_transactions,
+            )}
             changeType="neutral"
             color="from-pink-500 to-pink-600"
             delay={600}
@@ -121,6 +183,10 @@ export function OverviewTab({ section }: OverviewTabProps) {
             title="Unique Customers"
             value={formatNumber(kpis?.unique_customers)}
             change="Retail outlets"
+            compareDelta={compareLabel(
+              kpis?.unique_customers,
+              compareKpis?.unique_customers,
+            )}
             changeType="neutral"
             color="from-sky-500 to-sky-600"
             delay={700}
@@ -129,11 +195,26 @@ export function OverviewTab({ section }: OverviewTabProps) {
 
         {trendData && (
           <Card className="bg-slate-900/40 border-slate-800">
-            <CardHeader>
-              <CardTitle className="text-xl font-bold text-white">Monthly Revenue Trend</CardTitle>
-              <CardDescription className="text-slate-400">
-                Track monthly sales growth trajectory and volumes
-              </CardDescription>
+            <CardHeader className="flex flex-row items-start justify-between gap-3">
+              <div>
+                <CardTitle className="text-xl font-bold text-white">
+                  Monthly Revenue Trend
+                </CardTitle>
+                <CardDescription className="text-slate-400">
+                  Track monthly sales growth trajectory and volumes. CSV uses a single file
+                  with KPI rows (section=KPI) and trend rows (section=TREND).
+                </CardDescription>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={loading || !kpis}
+                className="text-xs border-slate-700 text-slate-300 shrink-0"
+                onClick={() => kpis && exportOverviewCsv(kpis, trendData)}
+              >
+                Export CSV
+              </Button>
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={400}>
@@ -206,11 +287,7 @@ export function OverviewTab({ section }: OverviewTabProps) {
                   margin={{ top: 8, right: 16, left: 8, bottom: 8 }}
                 >
                   <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
-                  <XAxis
-                    dataKey="label"
-                    stroke="#64748b"
-                    tick={CHART_AXIS_TICK}
-                  />
+                  <XAxis dataKey="label" stroke="#64748b" tick={CHART_AXIS_TICK} />
                   <YAxis
                     stroke="#64748b"
                     tick={CHART_AXIS_TICK}
@@ -229,7 +306,12 @@ export function OverviewTab({ section }: OverviewTabProps) {
                     contentStyle={CHART_TOOLTIP_STYLE}
                     formatter={(val: number) => [`${val.toFixed(1)}%`, "YoY Growth"]}
                   />
-                  <Bar dataKey="yoy_growth_pct" fill="#6366F1" name="YoY Growth" radius={[4, 4, 0, 0]} />
+                  <Bar
+                    dataKey="yoy_growth_pct"
+                    fill="#6366F1"
+                    name="YoY Growth"
+                    radius={[4, 4, 0, 0]}
+                  />
                 </BarChart>
               </ResponsiveContainer>
             </CardContent>

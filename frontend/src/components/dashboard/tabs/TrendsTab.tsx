@@ -1,6 +1,7 @@
 "use client";
 
 import { GROUPED_LINE_STYLES } from "@/components/dashboard/constants";
+import { ExportCsvButton } from "@/components/dashboard/ExportCsvButton";
 import { TabSection } from "@/components/dashboard/MetricCard";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import type { DailyRevenueData, ProcessedTrendPoint, TrendGroupBy } from "@/lib/types";
@@ -63,6 +64,8 @@ export function TrendsTab({
   const groupNames = getGroupNames(dailyRevenue, trendGroupBy);
   const pointCount = processedTrendData.length;
 
+  const exportRows = processedTrendData.map((row) => ({ ...row }));
+
   return (
     <TabSection loading={loading} error={error} hasData={!!dailyRevenue}>
       <Card className="bg-slate-900/40 border-slate-800">
@@ -120,6 +123,15 @@ export function TrendsTab({
                 By Category
               </button>
             </div>
+            <ExportCsvButton
+              tab="trends"
+              rows={exportRows}
+              disabled={loading}
+              columns={Object.keys(exportRows[0] ?? { date: "" }).map((key) => ({
+                key,
+                header: key,
+              }))}
+            />
           </div>
         </CardHeader>
         <CardContent>

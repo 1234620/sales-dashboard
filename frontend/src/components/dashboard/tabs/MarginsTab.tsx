@@ -1,4 +1,5 @@
 import { CHART_COLORS } from "@/components/dashboard/constants";
+import { ExportCsvButton } from "@/components/dashboard/ExportCsvButton";
 import { TabSection } from "@/components/dashboard/MetricCard";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import type { ChannelMixData, MarginsSection } from "@/lib/types";
@@ -8,6 +9,7 @@ import {
   upliftBarColor,
 } from "@/lib/chart-utils";
 import { formatCurrency, formatPercent } from "@/lib/format";
+import { useMemo } from "react";
 import {
   Bar,
   BarChart,
@@ -87,9 +89,40 @@ export function MarginsTab({ section }: MarginsTabProps) {
     ? Math.max(...returnsData.map((r) => r.return_rate))
     : 0;
 
+  const combinedExportRows = useMemo(() => {
+    const rows: Record<string, unknown>[] = [];
+    returnsData?.forEach((row) => {
+      rows.push({ section: "returns", ...row });
+    });
+    channelData?.forEach((row) => {
+      rows.push({ section: "channel", ...row });
+    });
+    festiveUplift?.forEach((row) => {
+      rows.push({ section: "festive", ...row });
+    });
+    return rows;
+  }, [returnsData, channelData, festiveUplift]);
+
   return (
     <TabSection loading={loading} error={error} hasData={!!data}>
       <div className="space-y-8">
+        <div className="flex justify-end">
+          <ExportCsvButton
+            tab="margins"
+            rows={combinedExportRows}
+            disabled={loading}
+            columns={[
+              { key: "section", header: "section" },
+              { key: "product_category", header: "product_category" },
+              { key: "channel", header: "channel" },
+              { key: "festival", header: "festival" },
+              { key: "revenue", header: "revenue" },
+              { key: "share_pct", header: "share_pct" },
+              { key: "return_rate", header: "return_rate" },
+              { key: "uplift_pct", header: "uplift_pct" },
+            ]}
+          />
+        </div>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {returnsData && (
             <Card className="bg-slate-900/40 border-slate-800">

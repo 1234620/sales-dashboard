@@ -146,6 +146,28 @@ def get_regional(filtered_df: pd.DataFrame = Depends(get_filtered_df)):
     regional_df = kpis.regional_revenue_share(filtered_df)
     return json.loads(regional_df.to_json(orient="records"))
 
+
+@app.get("/api/regional/states")
+def get_regional_states(
+    region: str = Query(..., description="Region name, e.g. West"),
+    filtered_df: pd.DataFrame = Depends(get_filtered_df),
+):
+    """Get state-level revenue breakdown within a region."""
+    if filtered_df.empty:
+        return {"error": "No data available"}
+
+    states_df = kpis.state_revenue_share(filtered_df, region)
+    return json.loads(states_df.to_json(orient="records"))
+
+
+@app.get("/api/heatmap")
+def get_heatmap(filtered_df: pd.DataFrame = Depends(get_filtered_df)):
+    """Get region × category revenue matrix for heatmap."""
+    if filtered_df.empty:
+        return {"error": "No data available"}
+
+    return kpis.region_category_heatmap(filtered_df)
+
 @app.get("/api/categories")
 def get_categories(filtered_df: pd.DataFrame = Depends(get_filtered_df)):
     """Get product category performance."""

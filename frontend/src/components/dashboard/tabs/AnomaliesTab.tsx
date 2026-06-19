@@ -1,5 +1,6 @@
 "use client";
 
+import { ExportCsvButton } from "@/components/dashboard/ExportCsvButton";
 import { MetricCard, TabSection } from "@/components/dashboard/MetricCard";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import type { AnomaliesSection, AnomalyPoint } from "@/lib/types";
@@ -44,6 +45,7 @@ function matchesTypeFilter(row: AnomalyPoint, filter: AnomalyTypeFilter): boolea
 interface AnomalyDotProps {
   cx?: number;
   cy?: number;
+  index?: number;
   payload?: { is_anomaly?: boolean };
 }
 
@@ -51,12 +53,25 @@ function currencyTick(value: number): string {
   return formatCurrency(value);
 }
 
-function AnomalyDot({ cx, cy, payload }: AnomalyDotProps) {
+function AnomalyDot({ cx, cy, index, payload }: AnomalyDotProps) {
+  const dotKey = `anomaly-dot-${index ?? "x"}`;
+
   if (cx === undefined || cy === undefined || !payload?.is_anomaly) {
-    return <circle cx={cx ?? 0} cy={cy ?? 0} r={0} fill="none" stroke="none" />;
+    return (
+      <circle
+        key={dotKey}
+        cx={cx ?? 0}
+        cy={cy ?? 0}
+        r={0}
+        fill="none"
+        stroke="none"
+        visibility="hidden"
+      />
+    );
   }
   return (
     <circle
+      key={dotKey}
       cx={cx}
       cy={cy}
       r={8}
@@ -82,6 +97,7 @@ export function AnomaliesTab({ section }: AnomaliesTabProps) {
 
   const [typeFilter, setTypeFilter] = useState<AnomalyTypeFilter>("all");
   const [flaggedPage, setFlaggedPage] = useState(1);
+  const [includeFullSeries, setIncludeFullSeries] = useState(false);
 
   const zscoreThreshold = seriesData?.zscore_threshold ?? 2.5;
   const rollingWindow = seriesData?.rolling_window_days ?? 30;
@@ -128,6 +144,18 @@ export function AnomaliesTab({ section }: AnomaliesTabProps) {
     if (chartData.length <= 90) return 0;
     return Math.max(0, chartData.length - 90);
   }, [chartData.length]);
+
+  const anomalyExportRows = useMemo(() => {
+    const source = includeFullSeries ? seriesData?.data ?? [] : filteredFlagged;
+    return source.map((row) => ({
+      date: row.date.split("T")[0],
+      daily_revenue: row.daily_revenue,
+      rolling_mean: row.rolling_mean,
+      z_score: row.z_score,
+      revenue_deviation: row.revenue_deviation ?? "",
+      is_anomaly: row.is_anomaly,
+    }));
+  }, [includeFullSeries, seriesData, filteredFlagged]);
 
   return (
     <TabSection loading={loading} error={error} hasData={!!seriesData}>
@@ -252,6 +280,28 @@ export function AnomaliesTab({ section }: AnomaliesTabProps) {
                 )}
               </div>
               <div className="flex flex-wrap items-center gap-2">
+                <label className="flex items-center gap-2 text-xs text-slate-400 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={includeFullSeries}
+                    onChange={(e) => setIncludeFullSeries(e.target.checked)}
+                    className="rounded border-slate-600 bg-slate-800 text-indigo-500"
+                  />
+                  Include full series in CSV
+                </label>
+                <ExportCsvButton
+                  tab="anomalies"
+                  rows={anomalyExportRows}
+                  disabled={loading}
+                  columns={[
+                    { key: "date", header: "date" },
+                    { key: "daily_revenue", header: "daily_revenue" },
+                    { key: "rolling_mean", header: "rolling_mean" },
+                    { key: "z_score", header: "z_score" },
+                    { key: "revenue_deviation", header: "revenue_deviation" },
+                    { key: "is_anomaly", header: "is_anomaly" },
+                  ]}
+                />
                 <div className="flex items-center gap-1.5 bg-slate-800/80 p-1.5 rounded-xl border border-slate-700">
                   <button
                     type="button"

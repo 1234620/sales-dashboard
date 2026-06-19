@@ -113,6 +113,32 @@ class TestRegionalRevenueShare:
         assert set(result["region"]) == set(regions_in_data)
 
 
+class TestStateRevenueShare:
+    def test_states_within_region(self, sample_data):
+        region = sample_data["region"].iloc[0]
+        result = kpis.state_revenue_share(sample_data, region)
+        assert "state" in result.columns
+        assert "revenue" in result.columns
+        assert "share_pct" in result.columns
+        if not result.empty:
+            assert abs(result["share_pct"].sum() - 100.0) < 0.1
+
+    def test_unknown_region_returns_empty(self, sample_data):
+        result = kpis.state_revenue_share(sample_data, "Nonexistent")
+        assert result.empty
+
+
+class TestRegionCategoryHeatmap:
+    def test_matrix_shape(self, sample_data):
+        result = kpis.region_category_heatmap(sample_data)
+        assert "regions" in result
+        assert "categories" in result
+        assert "values" in result
+        if result["regions"]:
+            assert len(result["values"]) == len(result["regions"])
+            assert all(len(row) == len(result["categories"]) for row in result["values"])
+
+
 class TestRepeatPurchaseRate:
     def test_basic(self, sample_data):
         # CUST-001 has 2 txns, CUST-002 has 2 txns → 4 repeat txns out of 5

@@ -93,3 +93,30 @@ class TestForecastCache:
         if "error" not in first_body:
             assert "forecast" in first_body
             assert len(second_body.get("forecast", [])) >= len(first_body.get("forecast", []))
+
+
+class TestRegionalStates:
+    def test_regional_states_returns_array(self, client):
+        regional = client.get("/api/regional").json()
+        if isinstance(regional, list) and regional:
+            region = regional[0]["region"]
+            response = client.get(f"/api/regional/states?region={region}")
+            assert response.status_code == 200
+            body = response.json()
+            assert "error" not in body
+            assert isinstance(body, list)
+            if body:
+                assert "state" in body[0]
+                assert "revenue" in body[0]
+                assert "share_pct" in body[0]
+
+
+class TestHeatmap:
+    def test_heatmap_matrix_keys(self, client):
+        response = client.get("/api/heatmap")
+        assert response.status_code == 200
+        body = response.json()
+        assert "error" not in body
+        assert "regions" in body
+        assert "categories" in body
+        assert "values" in body

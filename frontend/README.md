@@ -30,7 +30,16 @@ Open **http://localhost:3000** in your browser. Do not use `streamlit run` or po
 | `src/components/dashboard/tabs/` | One file per tab (Overview, Regional, Products, Trends, Forecasting, Anomalies, Margins) |
 | `src/lib/api.ts` | HTTP client → FastAPI (`NEXT_PUBLIC_API_URL`, default `http://localhost:8000`) |
 | `src/lib/chart-utils.ts` | Shared axis formatting, tick intervals, MAPE helper |
+| `src/lib/export-csv.ts` | Client-side CSV download (`downloadCsv`, `downloadRowsCsv`) |
+| `src/lib/export-pdf.ts` | Client-side PDF export via **html2canvas** `1.4.1` + **jspdf** `2.5.2` |
 | `src/lib/types.ts` | TypeScript types matching API responses |
+
+## Exports
+
+- **CSV** — Each tab has an **Export CSV** button in its card header (Overview uses a combined file: `section` column with `KPI` rows + `TREND` rows).
+- **PDF** — **Export PDF** in the filter panel captures the **active tab only** (white background override for readability).
+
+Filenames: `parasnath-{tab}-{YYYY-MM-DD}.csv` / `.pdf`.
 
 ## Environment
 

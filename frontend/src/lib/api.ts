@@ -13,8 +13,10 @@ import type {
   KPIData,
   RegionalData,
   ReturnRateData,
+  StateData,
   TopSKUsData,
   TrendData,
+  HeatmapData,
   YoYGrowthData,
 } from "@/lib/types";
 
@@ -72,6 +74,23 @@ export async function fetchRegional(filters?: FilterParams): Promise<RegionalDat
   const query = buildQueryString(filters);
   const res = await fetch(`${API_BASE}/api/regional${query}`, { cache: "no-store" });
   if (!res.ok) throw new Error("Failed to fetch regional data");
+  return res.json();
+}
+
+export async function fetchRegionalStates(
+  region: string,
+  filters?: FilterParams,
+): Promise<StateData[]> {
+  const query = buildQueryString(filters, { region });
+  const res = await fetch(`${API_BASE}/api/regional/states${query}`, { cache: "no-store" });
+  if (!res.ok) throw new Error("Failed to fetch state breakdown");
+  return res.json();
+}
+
+export async function fetchHeatmap(filters?: FilterParams): Promise<HeatmapData> {
+  const query = buildQueryString(filters);
+  const res = await fetch(`${API_BASE}/api/heatmap${query}`, { cache: "no-store" });
+  if (!res.ok) throw new Error("Failed to fetch heatmap");
   return res.json();
 }
 

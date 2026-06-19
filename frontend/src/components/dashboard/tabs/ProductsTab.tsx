@@ -1,3 +1,5 @@
+import { CategoryHeatmap } from "@/components/dashboard/CategoryHeatmap";
+import { ExportCsvButton } from "@/components/dashboard/ExportCsvButton";
 import { TabSection } from "@/components/dashboard/MetricCard";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import type { ProductsSection, SKUData } from "@/lib/types";
@@ -63,6 +65,7 @@ export function ProductsTab({ section }: ProductsTabProps) {
   const { data, loading, error } = section;
   const categoryData = data?.categories;
   const skuData = data?.skus;
+  const heatmapData = data?.heatmap;
 
   const topSkuRows = useMemo(
     () => (skuData ? prepareSkuRows(skuData.top) : []),
@@ -78,19 +81,40 @@ export function ProductsTab({ section }: ProductsTabProps) {
     return Math.min(...bottomSkuRows.map((r) => r.revenue));
   }, [bottomSkuRows]);
 
+  const skuExportRows = useMemo(() => {
+    if (!skuData) return [];
+    return [
+      ...skuData.top.map((row) => ({ section: "top", ...row })),
+      ...skuData.bottom.map((row) => ({ section: "bottom", ...row })),
+    ];
+  }, [skuData]);
+
   return (
     <TabSection loading={loading} error={error} hasData={!!data}>
       <div className="space-y-8">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {categoryData && (
             <Card className="bg-slate-900/40 border-slate-800">
-              <CardHeader>
-                <CardTitle className="text-xl font-bold text-white">
-                  Category Margin Contribution
-                </CardTitle>
-                <CardDescription className="text-slate-400">
-                  Net revenue by category with margin % annotated on each bar
-                </CardDescription>
+              <CardHeader className="flex flex-row items-start justify-between gap-3">
+                <div>
+                  <CardTitle className="text-xl font-bold text-white">
+                    Category Margin Contribution
+                  </CardTitle>
+                  <CardDescription className="text-slate-400">
+                    Net revenue by category with margin % annotated on each bar
+                  </CardDescription>
+                </div>
+                <ExportCsvButton
+                  tab="products-categories"
+                  rows={categoryData}
+                  disabled={loading}
+                  columns={[
+                    { key: "product_category", header: "product_category" },
+                    { key: "revenue", header: "revenue" },
+                    { key: "margin", header: "margin" },
+                    { key: "margin_pct", header: "margin_pct" },
+                  ]}
+                />
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={320}>
@@ -139,13 +163,26 @@ export function ProductsTab({ section }: ProductsTabProps) {
 
           {skuData && (
             <Card className="bg-slate-900/40 border-slate-800">
-              <CardHeader>
-                <CardTitle className="text-xl font-bold text-white">
-                  🏆 Top 10 SKUs by Revenue
-                </CardTitle>
-                <CardDescription className="text-slate-400">
-                  Top-selling products and carton quantities
-                </CardDescription>
+              <CardHeader className="flex flex-row items-start justify-between gap-3">
+                <div>
+                  <CardTitle className="text-xl font-bold text-white">
+                    🏆 Top 10 SKUs by Revenue
+                  </CardTitle>
+                  <CardDescription className="text-slate-400">
+                    Top-selling products and carton quantities
+                  </CardDescription>
+                </div>
+                <ExportCsvButton
+                  tab="products-skus"
+                  rows={skuExportRows}
+                  disabled={loading}
+                  columns={[
+                    { key: "section", header: "section" },
+                    { key: "product_sku", header: "product_sku" },
+                    { key: "revenue", header: "revenue" },
+                    { key: "quantity", header: "quantity" },
+                  ]}
+                />
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={360}>
@@ -216,6 +253,22 @@ export function ProductsTab({ section }: ProductsTabProps) {
                   <Bar dataKey="revenue" fill="#EF4444" name="Revenue" radius={[0, 4, 4, 0]} />
                 </BarChart>
               </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        )}
+
+        {heatmapData && heatmapData.regions.length > 0 && (
+          <Card className="bg-slate-900/40 border-slate-800">
+            <CardHeader>
+              <CardTitle className="text-xl font-bold text-white">
+                Region × Category Revenue Heatmap
+              </CardTitle>
+              <CardDescription className="text-slate-400">
+                CSS grid heatmap (no extra chart dependency). Darker indigo = higher revenue.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <CategoryHeatmap data={heatmapData} loading={loading} />
             </CardContent>
           </Card>
         )}

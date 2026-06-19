@@ -47,6 +47,23 @@ export interface RegionalData {
   share_pct: number;
 }
 
+export interface StateData {
+  state: string;
+  revenue: number;
+  share_pct: number;
+}
+
+export interface HeatmapData {
+  regions: string[];
+  categories: string[];
+  values: number[][];
+}
+
+export interface CompareKPIData {
+  current: KPIData;
+  prior: KPIData;
+}
+
 export interface CategoryData {
   product_category: string;
   revenue: number;
@@ -168,12 +185,15 @@ export type OverviewSection = SectionState<{
   kpis: KPIData;
   trend: TrendData;
   yoy: YoYGrowthData;
+  compareKpis?: KPIData | null;
+  compareTrend?: TrendData | null;
 }>;
 
 export type RegionalSection = SectionState<RegionalData[]>;
 export type ProductsSection = SectionState<{
   categories: CategoryData[];
   skus: TopSKUsData;
+  heatmap: HeatmapData | null;
 }>;
 export type TrendsSection = SectionState<DailyRevenueData>;
 export type ForecastSection = SectionState<ForecastData>;
@@ -193,4 +213,5 @@ export interface FilterState {
   selectedRegions: string[];
   selectedCategories: string[];
   selectedChannels: string[];
+  compareToPrior: boolean;
 }
